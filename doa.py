@@ -31,12 +31,18 @@ if dev:
 def get_tuning():
     return Tuning(dev)
 
-def report(tuning, interval = 1):
+def log_report(line, filename):
+    with open(filename,'a') as fout:
+        fout.write('\t'.join(map(str,line)) + '\n')
+
+def report(tuning, interval = 1, filename = None):
     start = time.time()
     while True:
         if time.time() - start > interval:
             start = time.time()
-            print(tuning.direction, tuning.is_voice(), time.time())
+            line = tuning.direction, tuning.is_voice(), time.time()
+            if filename: log_report(line, filename)
+            else: print(line)
 
 def get_mic_array_info(p):
     info = p.get_host_api_info_by_index(0)
@@ -66,26 +72,43 @@ def _record_sox(filename = 'def.wav'):
     print("starting recording at:", time.time())
     os.system('sox -d ' + filename + ' > /dev/null 2>&1')
 
-def _find_sox_pid(filename = None):
+def get_sox_pids(filename = None):
     o = subprocess.check_output(['ps']).decode()
+    pids = []
     for line in o.split('\n'):
         if 'sox' in line:
-            if filename and filename: return line.split(' ')[0]
-            if not filename: return line.split(' ')[0]
-    return False
+            pid = None
+            if filename and filename in line: 
+                pid= line.split(' ')[0]
+            elif not filename: 
+                pid = line.split(' ')[0]
+            if pid: pids.append(pid)
+    return pids
 
 def print_sox_pid(filename = None):
-    print(_find_sox_pid(filename))
+    print(get_sox_pid(filename))
 
-def record_sox(filename = 'def.wav'):
-    p1 = multiprocessing.Process(
+def start_sox_recording(filename):
+    print('record to file:',filename)
+    p = multiprocessing.Process(
         target = _record_sox,
         args=(filename,),
         )
-    p1.start()
-    sox_pid = find_sox_pid(filename)
-    return p1, sox_pid
+    p.start()
+    return p
 
+def stop_sox_recording(filename = None):
+    pids = get_sox_pids(filename)
+    for pid in pids:
+        os.system('kill ' + pid)
+
+    
+def record_sox(filename, seconds = None):
+    p = start_sox_recording(filename)
+    if seconds:
+        stopper = scheduler.every(seconds, maximum_nexecuters=1, args=(filename,),
+            n_times = 1)
+    return p
     
     
     
@@ -104,7 +127,6 @@ def record_pa(filename = 'default.wav', frames = [], seconds = 10):
     p.terminate()
 
     n_channels = info['maxInputChannels']
-    
     save_audio_frames(frames, filename, n_channels)
         
 
