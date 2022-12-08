@@ -7,10 +7,9 @@ import time
 def record(filename, seconds = None):
     p = start_recording(filename)
     if seconds:
-        stopper = scheduler.every(seconds, maximum_nexecuters=1, args=(filename,),
-            n_times = 1)
+        stopper = scheduler.every(seconds, function = stop_recording, 
+            maximum_nexecuters=1, args=(filename,), n_times = 1)
     return p
-
 
 def stop_recording(filename = None):
     pids = get_sox_pids(filename)
