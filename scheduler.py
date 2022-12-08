@@ -48,7 +48,6 @@ class every:
         self.unit = unit
         self.conditions = conditions
         self.interval_seconds = self.interval * self.unit2seconds[unit]
-        if function == None: self.function = self.set_interval_reached()
         self.function = function
         self.name = name
         self.args = args
@@ -58,7 +57,6 @@ class every:
         self.n_times = n_times
         self.verbose = verbose
         self.n_times_counter = 1
-        self.interval_reached = False
         self.wait(self.interval_seconds)
 
     def check_conditions(self):
@@ -99,8 +97,7 @@ class every:
             self.stop()
         else:
             if self.verbose:
-                print('executing function:',self.function,
-                    'if none setting interval_reached to true.')
+                print('executing function:',self.function)
             self.execute()
 
     def stop(self):
