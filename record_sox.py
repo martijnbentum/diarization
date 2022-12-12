@@ -49,7 +49,28 @@ def print_sox_pid(filename = None):
     print(get_sox_pids(filename))
     
     
+def _handle_duration(d):
+    x = d['duration']
+    d['samples'] = int(x.split(' ')[2])
+    s = x.split(' ')[0].split(':')
+    s = int(s[0]) * 3600 + int(s[1]) * 60 + float(s[2])
+    d['duration_seconds'] = s
+    return d
 
+
+def get_sox_info(filename):
+    t = subprocess.check_output(['sox','--i',filename]).decode().split('\n')
+    names = 'Input File,Channels,Sample Rate,Duration,File Size'.split(',')
+    d = {}
+    for line in t:
+        if not line:continue
+        for name in names:
+            if name in line:
+                d[name.lower().replace(' ','_')] = line.split(' : ')[-1].strip()
+    d = _handle_duration(d)
+    return d
+                
+    
         
 
 
