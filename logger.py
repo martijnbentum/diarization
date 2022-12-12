@@ -56,12 +56,14 @@ class Logger:
     ''' logs direction of sound angle and voice activity detection
     does not use scheduler less cpu load can go faster than 1 hz
     '''
-    def __init__(self, name, interval = 0.2):
+    def __init__(self, name = None, interval = 0.2):
         self.devs = usb.core.find(find_all=True, idVendor=0x2886, 
             idProduct=0x0018)
         self.name = name
-        self.filename = name + '.log'
-        init_file(self.filename)
+        if not name: self.filename = None
+        else: 
+            self.filename = name + '.log'
+            init_file(self.filename)
         self.interval = interval
         self.tunings = [Tuning(dev) for dev in self.devs]
         self.every = scheduler.every(interval = 0,function = _logging,
