@@ -36,6 +36,7 @@ def get_sox_pids(filename = None):
     pids = []
     for line in o.split('\n'):
         if 'sox' in line:
+            line = line.strip()
             pid = None
             if filename and filename in line: 
                 pid= line.split(' ')[0]
