@@ -1,4 +1,6 @@
+import datetime
 import multiprocessing
+from matplotlib import pyplot as plt
 import os
 import record_sox
 import scheduler
@@ -118,7 +120,18 @@ def _close_usb_connection(tunings):
 def load_log(filename):
     with open(filename) as fin:
         t = fin.read().split('\n')
+    output = []
+    for line in t:
+        if not line: continue
+        oline = []
+        for item in line.split('\t'):
+            if '.' in item: oline.append(float(item))
+            else: oline.append(int(item))
+        output.append(oline)
+    return output
+
     output = [line.split('\t') for line in t if line]
+    
     return output
 
 def load_log_start_end_time(filename):
@@ -127,3 +140,14 @@ def load_log_start_end_time(filename):
     end_time = float(log[-1][-1])
     return start_time, end_time
 
+
+def plot_log(filename):
+    log = load_log(filename)
+    x = [datetime.datetime.fromtimestamp(l[-1]) for l in log]
+    doa = [l[0] for l in log]
+    vad = [l[1] for l in log]
+    plt.ion()
+    plt.clf()
+    plt.plot(x,doa)
+    return x, doa, vad
+    
