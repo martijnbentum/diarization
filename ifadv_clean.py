@@ -2,13 +2,14 @@ import glob
 import re
 import string
 
-
 table_directory = '/Users/u050158/IFADV/TABLE/'
 wav_directory = '/Users/u050158/IFADV/WAV/'
 table_fn = glob.glob(table_directory + '*.Table')
 wav_fn = glob.glob(wav_directory + '*.wav')
+txt_directory = '/Users/u050158/IFADV/TXT/'
 
-def open_table(f, clean = True, return_text = False):
+
+def open_table(f, clean = True, return_text = False, remove_empty_table_lines = False):
     '''open a table file.
     clean           the transcriptions are normalized if True
     return_text     only the transcriptions are returned
@@ -23,8 +24,23 @@ def open_table(f, clean = True, return_text = False):
         line[4] = int(line[4])
     if clean: table = clean_table(table)
     if return_text: return table_to_text(table)
+    if remove_empty_table_lines: table = remove_empty_transcription_lines(table)
     return table
 
+def remove_empty_transcription_lines(table):
+    output = []
+    for line in table:
+        if not line[2]: continue
+        output.append(line)
+    return output
+
+def write_text_files():
+    ''' write all IFADV transcriptions to text files with normalized texts.'''
+    for f in table_fn:
+        identifier = filename_to_identifier(f)
+        text = open_table(f, return_text = True)
+        with open( txt_directory + identifier + '.txt', 'w') as fout:
+            fout.write('\n'.join(text))
 
 def filename_to_identifier(filename):
     '''map wav or table filename to IFADV identifier.'''
@@ -168,11 +184,15 @@ def replace_special_chars(t):
         t = t.replace(k,d[k])
     return t
 
-def remove_words(t, remove_words = ['ggg','xxx']):
+def remove_words(t, remove = None):
+    if not remove:
+        remove = ['gg','ggg','gggg','xx','xxx','xxxx','um','uhm','kch']
+        remove += ['mm','mmm']
     words = t.split(' ')
     output = []
     for word in words:
-        if word in remove_words: continue
+        if word in remove: continue
+        if len(word) == 1: continue 
         output.append(word)
     return ' '.join(output)
 
