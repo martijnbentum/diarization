@@ -106,7 +106,10 @@ class Tuning:
             usb.util.CTRL_IN | usb.util.CTRL_TYPE_VENDOR | usb.util.CTRL_RECIPIENT_DEVICE,
             0, cmd, id, length, self.TIMEOUT)
 
-        response = struct.unpack(b'ii', response.tostring())
+        if hasattr(response,'tostring'):
+            response = struct.unpack(b'ii', response.tostring())
+        elif hasattr(response,'tolist'):
+            response = response.tolist()
 
         if data[2] == 'int':
             result = response[0]
