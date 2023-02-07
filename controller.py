@@ -1,14 +1,47 @@
 import json
 import logger
+import platform
 import record_sox 
 import time
+import glob
+import os
+
+ifdav_dir = '/home/politie/IFADV/WAV/'
+
+def _to_recorded_wav_name(filename):
+    f = filename.split('/')[-1]
+    return f.lower()
+
+def wait(seconds):
+    start = time.time()
+    while True:
+        time.sleep(1)
+        if time.time() - start > seconds: break
+    print('waited',time.time() - start, 'seconds')
+    
+def record_all_ifadv(start_index = 0, skip_recorded = True):
+    fn = glob.glob(ifdav_dir + '*.wav')
+    for f in fn[start_index:]:
+        output_filename = _to_recorded_wav_name(f)
+        name = output_filename.split('.')[0]
+        if os.path.isfile(output_filename) and skip_recorded: 
+            print('skipping',f,name)
+            continue
+        print('handling',f, output_filename, name)
+        c = Controller(name = name, play_audio_filename = f)
+        c.start()
+        wait(930)
+        c.stop()
+        print('done handling',f)
 
 class Controller:
-    def __init__(self, name, interval = 0.2):
+    def __init__(self, name, play_audio_filename = None,interval = 0.2):
+        self.platform = platform.platform()
         self.name = name
         self.interval = interval
         self.audio_filename = name + '.wav'
         self.filename = name + '.json'
+        self.play_audio_filename = play_audio_filename
         self.start_time = None
         self.end_time = None
 
@@ -17,16 +50,22 @@ class Controller:
         self.start_time = time.time()
         self.logger = logger.Logger(self.name, self.interval) 
         self.start_audio_time = time.time()
-        record_sox.record(self.audio_filename)
+        record_sox.record(self.audio_filename, self.platform)
         self.started_audio_time = time.time()
         self.log_filename = self.logger.filename
         t = self.started_audio_time - self.start_audio_time
         self.start_dif_audio_time = t
+        self.start_play_audio_time = time.time()
+        if self.play_audio_filename:
+            record_sox.play(self.play_audio_filename)
+            self.started_play_audio_time = time.time()
+            t = self.started_play_audio_time - self.start_play_audio_time
+            self.start_dif_play_audio_time = t
 
 
     def stop(self):
         self.end_audio_time= time.time()
-        record_sox.stop_recording(self.audio_filename)
+        record_sox.stop_recording()
         self.ended_audio_time= time.time()
         self.logger.stop()
         self.end_time = time.time()
@@ -49,6 +88,10 @@ class Controller:
         d['start_audio_time'] = self.start_audio_time
         d['started_audio_time'] = self.started_audio_time
         d['start_dif_audio_time'] = self.start_dif_audio_time
+        if self.play_audio_filename:
+            d['start_play_audio_time'] = self.start_play_audio_time
+            d['started_play_audio_time'] = self.started_play_audio_time
+            d['start_dif_play_audio_time'] = self.start_dif_play_audio_time
         d['end_audio_time'] = self.end_audio_time
         d['ended_audio_time'] = self.end_audio_time
         d['end_dif_audio_time'] = self.end_dif_audio_time
