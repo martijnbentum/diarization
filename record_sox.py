@@ -4,11 +4,11 @@ import scheduler
 import subprocess
 import time
 
-def record(filename, seconds = None):
-    p = start_recording(filename)
+def record(filename, platform =None, seconds = None):
+    p = start_recording(filename, platform)
     if seconds:
         stopper = scheduler.every(seconds, function = stop_recording, 
-            maximum_nexecuters=1, args=(filename,), n_times = 1)
+            maximum_nexecuters=1, args=(filename), n_times = 1)
     return p
 
 def stop_recording(filename = None):
@@ -17,15 +17,22 @@ def stop_recording(filename = None):
         os.system('kill ' + pid)
 
 
-def _record(filename = 'def.wav'):
-    print("starting recording at:", time.time())
-    os.system('sox -d ' + filename + ' > /dev/null 2>&1')
+def _record(filename = 'def.wav', platform = None):
+    if 'macOs' in platform:
+        print("starting recording at:", time.time())
+        os.system('sox -d ' + filename + ' > /dev/null 2>&1')
+    elif 'Linux' in platform:
+        print("starting recording at:", time.time())
+        os.system('sox -t alsa hw:1 ' + filename + ' > /dev/null 2>&1')
+    else:
+        print('unknown platform doing nothing',platform)
 
-def start_recording(filename):
+
+def start_recording(filename, platform = None):
     print('record to file:',filename)
     p = multiprocessing.Process(
         target = _record,
-        args=(filename,),
+        args=(filename, platform),
         )
     p.start()
     return p
@@ -67,11 +74,36 @@ def get_sox_info(filename):
         if not line:continue
         for name in names:
             if name in line:
-                d[name.lower().replace(' ','_')] = line.split(' : ')[-1].strip()
+                d[name.lower().replace(' ','_')]=line.split(' : ')[-1].strip()
     d = _handle_duration(d)
     return d
                 
+def stop_playing(filename = None):
+    pids = get_sox_pids(filename)
+    for pid in pids:
+        os.system('kill ' + pid)
+
+
+def _play(filename):
+    print("starting playing at:", time.time())
+    command = 'aplay -D hw:CARD=PCH,DEV=0 '
+    command += filename
+    command += ' > /dev/null 2>&1'
+    os.system(command)
+
+
+def start_playing(filename):
+    print('play file:',filename)
+    p = multiprocessing.Process(
+        target = _play,
+        args=(filename,),
+        )
+    p.start()
+    return p
     
         
+def play(filename):
+    p = start_playing(filename)
+    return p
 
 
