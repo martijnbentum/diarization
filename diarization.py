@@ -1,8 +1,10 @@
 import ifadv_clean
 from pyannote.core import Segment, Annotation
 
+
 def table_to_annotation(table_filename, max_delta_for_clustering = 0.5):
-    table = ifadv_clean.open_table(table_filename, remove_empty_table_lines = True)
+    table = ifadv_clean.open_table(table_filename, 
+        remove_empty_table_lines = True)
     reference = Annotation()
     for cluster in cluster_speaker(table, 'spreker1'):
         s,e = _cluster_to_start_end_time(cluster)
