@@ -2,6 +2,7 @@ import json
 import logger
 import platform
 import record_sox 
+import scheduler
 import time
 import glob
 import os
@@ -12,27 +13,40 @@ def _to_recorded_wav_name(filename):
     f = filename.split('/')[-1]
     return f.lower()
 
-def wait(seconds):
-    start = time.time()
-    while True:
-        time.sleep(1)
-        if time.time() - start > seconds: break
-    print('waited',time.time() - start, 'seconds')
+def stop_controller(controller):
+    print('stopping', controller.name)
+    controller.stop()
+
+def make_controller(name, play_audio_filename, stop_time):
+    print('starting', name, play_audio_filename)
+    c = Controller(name, play_audio_filename)
+    c.start()
+    scheduler.every(
+        interval = stop_time,
+        function = stop_controller, 
+        args = (c,),
+        n_times = 1)
+    
     
 def record_all_ifadv(start_index = 0, skip_recorded = True):
     fn = glob.glob(ifdav_dir + '*.wav')
+    start = 0
     for f in fn[start_index:]:
         output_filename = _to_recorded_wav_name(f)
         name = output_filename.split('.')[0]
         if os.path.isfile(output_filename) and skip_recorded: 
             print('skipping',f,name)
             continue
-        print('handling',f, output_filename, name)
-        c = Controller(name = name, play_audio_filename = f)
-        c.start()
-        wait(930)
-        c.stop()
+        print('setting up',f, output_filename, name)
+        print('start over', start, 'seconds stops at:', start + 930)
+        scheduler.every(
+            interval = start,
+            function = make_controller,
+            args = (name, f, 930),
+            n_times = 1)
+        start += 933
         print('done handling',f)
+
 
 class Controller:
     def __init__(self, name, play_audio_filename = None,interval = 0.2):
