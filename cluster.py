@@ -10,14 +10,14 @@ wav_dir = '../WAV/'
 
 class Cluster:
     def __init__(self, name, cluster_type = '1d', nspeakers = 2): 
-        self.name = name
+        self._handle_name(name)
         self.cluster_type = cluster_type
         self.nspeakers = nspeakers
-        self.log_filename = log_dir + name + '.log'
         self.log = logger.load_log(self.log_filename)
-        self.start_recording = self.log[0][2]
-        self.json_filename = log_dir + name + '.json'
+        self.start_log = self.log[0][2]
+        self.json_filename = log_dir + self.name + '.json'
         self.json = json.load(open(self.json_filename))
+        self.start_time = self.json['started_play_audio_time']
         self._cluster()
         self._select_labels()
         self._make_speakers()
@@ -37,8 +37,14 @@ class Cluster:
         for speaker in self.speakers:
             m += speaker.__repr__() + '\n'
         return m
-        
-        
+
+    def _handle_name(self, name):
+        if '/' in name and '.log' in name:
+            self.log_filename = name
+            self.name = self.log_filename.split('/')[-1].split('.')[0]
+        else:
+            self.name = name
+            self.log_filename = log_dir + name + '.log'
 
     def _cluster(self):
         o = cluster_doa_1d(self.log_filename)
@@ -94,13 +100,13 @@ class Turn:
         self.speaker = speaker
         self.log = speaker.log
         self.label = speaker.label
-        self.start_recording = speaker.cluster.start_recording
+        self.start_recording = speaker.cluster.start_time
         self._set_info()
 
     def __repr__(self):
         m = str(self.label) + ' | '
-        m += str(round(self.start_time - self.start_recording,2)) + ' - '
-        m += str(round(self.end_time - self.start_recording,2)) + ' | '
+        m += str(round(self.start_time,2)) + ' - '
+        m += str(round(self.end_time,2)) + ' | '
         m += str(round(self.duration,2))
         return m
 
@@ -108,17 +114,24 @@ class Turn:
         self.start_index = self.indices[0]
         self.end_index = self.indices[-1] + 1
         if self.end_index >= len(self.log): self.end_index -= 1
-        self.start_time = self.log[self.start_index][2]
-        self.end_time = self.log[self.end_index][2] - 0.01
-        if self.end_time <= self.start_time: 
-            self.end_time = self.start_time + 0.19
+        self.start_time_raw = self.log[self.start_index][2]
+        self.end_time_raw = self.log[self.end_index][2] - 0.01
+        if self.end_time_raw <= self.start_time_raw: 
+            self.end_time_raw = self.start_time_raw + 0.19
             self.guessed_end_time = True
         else: self.guessed_end_time = False
+        self.start_time = self.start_time_raw - self.start_recording
+        self.end_time = self.end_time_raw - self.start_recording
         self.duration = self.end_time - self.start_time
 
     @property
     def log_lines(self):
         return [self.log[i] for i in self.indices]
+
+    def get_start_end(self,adjust = 0):
+        s = self.start_time + adjust
+        e = self.end_time + adjust
+        return s, e
 
 
             
