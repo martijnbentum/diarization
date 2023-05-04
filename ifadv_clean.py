@@ -1,15 +1,26 @@
 import glob  
 import re
 import string
+import os
 
-table_directory = '/Users/u050158/IFADV/TABLE/'
-wav_directory = '/Users/u050158/IFADV/WAV/'
+
+home_dir = os.path.expanduser('~') + '/'
+ifadv_dir = home_dir + 'IFADV/'
+
+table_directory =ifadv_dir + 'TABLE/'
+wav_directory = ifadv_dir + 'WAV/'
 table_fn = glob.glob(table_directory + '*.Table')
 wav_fn = glob.glob(wav_directory + '*.wav')
-txt_directory = '/Users/u050158/IFADV/TXT/'
+txt_directory = ifadv_dir +'/TXT/'
 
+def _check_first_line(table):
+    header = 'tmin,tier,text,tmax'.split(',')
+    if table[0] == header:
+        return table[1:]
+    return table
 
-def open_table(f, clean = True, return_text = False, remove_empty_table_lines = False):
+def open_table(f, clean = True, return_text = False, 
+    remove_empty_table_lines = False):
     '''open a table file.
     clean           the transcriptions are normalized if True
     return_text     only the transcriptions are returned
@@ -18,6 +29,7 @@ def open_table(f, clean = True, return_text = False, remove_empty_table_lines = 
         t = fin.read()
     t = replace_special_chars(t)
     table = [line.split('\t') for line in t.split('\n') if line]
+    table = _check_first_line(table)
     for line in table:
         for index in [0,3,5]:
             line[index] = float(line[index])
