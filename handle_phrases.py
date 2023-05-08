@@ -1,6 +1,14 @@
+'''
+module to split ifadv recordings in phrases (transcription unit)
+Table object holds all transcription phrases for a given recording
+Phrase object points to extracted phrase wav file and links to metadata
+'''
+
 import ifadv_clean
 import os
 import subprocess
+import play_audio
+import speakers
 
 phrase_dir = ifadv_clean.ifadv_dir + 'PHRASES/'
 
@@ -13,12 +21,18 @@ def make_all_tables():
         
 
 class Table:
+    '''
+    Transcription phrases for a single recordings
+    15 minutes of dialogues (two speakers)
+    links to Phrase object which links to extract wav audio file of the phrase
+    '''
     def __init__(self,table_filename):
         self.table_filename = table_filename
         self.table = ifadv_clean.open_table(table_filename, 
             remove_empty_table_lines = True)
         self.wav_filename = table_to_wav_filename(self.table_filename)
         self.identifier = self.wav_filename.split('/')[-1].split('.')[0]
+        self.recording = speakers.make_recording(self.wav_filename)
         self._set_info()
 
 
@@ -40,6 +54,12 @@ class Table:
             if not phrase.overlap: self.non_overlapping_phrases.append(phrase)
 
 class Phrase:
+    '''
+    a phrase is a transcription unit, an utterance of a single speaker
+    a phrase can overlap in time with a phrase of another speaker
+    the Speaker object contains meta data of the speaker of the phrase
+    the phrase is linked to wav audio file with the extracte phrase
+    '''
     def __init__(self,table, phrase_index):
         self.phrase = table.table[phrase_index]
         self.table = table
@@ -54,6 +74,7 @@ class Phrase:
         self.text = p[2]
         self.speaker_name = p[1]
         self.channel = int(self.speaker_name.replace('spreker',''))
+        self.speaker = self.table.recording.channel_to_speaker(self.channel)
         self.start_time = p[0]
         self.end_time = p[3]
         self.nwords = p[4]
@@ -70,6 +91,10 @@ class Phrase:
         cmd += ' ' + str(self.duration)
         os.system(cmd)
 
+    def play(self):
+        print(self.__repr__())
+        play_audio.play(self.wav_filename)
+        
 
     def check_overlap(self,other):
         if type(self) != type(other): raise ValueError(other,'is not a phrase')
@@ -80,12 +105,16 @@ class Phrase:
     def times(self):
         return self.start_time, self.end_time
 
+    
+
 
 def table_to_wav_filename(table_filename):
+    '''maps table filename to wav filename.'''
     f = table_filename.split('/')[-1].split('_')[0]
     return ifadv_clean.wav_directory + f + '.wav'
 
 def overlap(s1,e1,s2,e2):
+    '''check whether start and end point of two phrases overlap.'''
     if s1 <= s2:
         if e1 > s2: return True
         else: return False
@@ -94,6 +123,9 @@ def overlap(s1,e1,s2,e2):
         else: return False
 
 def check_overlapping_phrases(phrase,phrases):
+    '''checks whether a phrase overlaps with other phrases.
+    overlapping phrases are stored in in the overlapping_phrases attribute
+    '''
     for i, p in enumerate(phrases):
         if phrase.phrase_index == i: continue
         if phrase.check_overlap(p):
@@ -101,12 +133,14 @@ def check_overlapping_phrases(phrase,phrases):
     phrase.overlap = len(phrase.overlapping_phrases) > 0
         
 def phrase_to_db(phrase):
+    '''compute intensity for a phrase with praat.'''
     f = phrase.wav_filename
     o = subprocess.check_output('praat get_db.praat ' + f, shell=True)
     db = o.decode('utf-8').split(' ')[0]
     return db
 
 def make_all_phrases_db_list(tables = None):
+    '''make all phrase audio files.'''
     if not tables: tables = make_all_tables()
     output = []
     for table in tables:
