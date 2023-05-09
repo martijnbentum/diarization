@@ -11,6 +11,7 @@ import play_audio
 import speakers
 
 phrase_dir = ifadv_clean.ifadv_dir + 'PHRASES/'
+turn_dir = ifadv_clean.ifadv_dir + 'TURNS/'
 
 def make_all_tables():
     o = []
@@ -33,10 +34,11 @@ class Table:
         self.wav_filename = table_to_wav_filename(self.table_filename)
         self.identifier = self.wav_filename.split('/')[-1].split('.')[0]
         self.recording = speakers.make_recording(self.wav_filename)
-        self._set_info()
+        self._make_phrases()
+        self._make_turns()
 
 
-    def _set_info(self):
+    def _make_phrases(self):
         self.phrases = []
         for i in range(len(self.table)):
             self.phrases.append(Phrase(self,i))
@@ -52,6 +54,93 @@ class Table:
             self.speaker_duration_dict[phrase.speaker_name] += phrase.duration
             check_overlapping_phrases(phrase,self.phrases)
             if not phrase.overlap: self.non_overlapping_phrases.append(phrase)
+
+    def _make_turns(self):
+        self.turns = []
+        for phrase in self.phrases:
+            if phrase.part_of_turn: continue
+            if not phrase.phrase_wav_file_exists: continue
+            self.turns.append(Turn(self, phrase))
+        self.non_overlapping_turns = []
+        for turn in self.turns:
+            if not turn.overlap: self.non_overlapping_turns.append(turn)
+            turn.set_overlapping_turns()
+
+
+class Turn:
+    def __init__(self,table,phrase, silence_delta = 0.5):
+        self.table = table
+        self.start_phrase = phrase
+        self.silence_delta = silence_delta
+        self._find_other_phrases()
+        self._set_info()
+
+    def __repr__(self):
+        m = self.text[:80].ljust(80) + ' | s: '
+        m += str(round(self.duration,2)).ljust(5) + ' | o: '
+        m += str(self.overlap).ljust(5) + ' | np: '
+        m += str(self.nphrases).ljust(2) + ' | s: '
+        m += self.start_phrase.speaker_name
+        return m
+
+    def _find_other_phrases(self):
+        self.phrases = [self.start_phrase]
+        start_index = self.start_phrase.phrase_index + 1
+        for phrase in self.table.phrases[start_index:]:
+            if phrase.part_of_turn: break
+            if phrase.speaker_name != self.start_phrase.speaker_name: break
+            delta = phrase.start_time - self.phrases[-1].end_time 
+            if delta > self.silence_delta: break
+            self.phrases.append(phrase)
+            phrase.part_of_turn = True
+            self.turn = self
+
+    def _set_info(self):
+        self.start_time = self.phrases[0].start_time
+        self.end_time = self.phrases[-1].end_time
+        self.nphrases = len(self.phrases)
+        self.nwords = sum([phrase.nwords for phrase in self.phrases])
+        self.duration = self.end_time - self.start_time
+        self.speaker = self.start_phrase.speaker
+        self.channel= self.start_phrase.channel
+        self.recording = self.table.recording
+        self.end_phrase = self.phrases[-1]
+        self.overlap = True if sum([p.overlap for p in self.phrases]) > 0 else False
+        self.text = ' '.join([p.text for p in self.phrases])
+
+    def set_overlapping_turns(self):
+        self.overlapping_turns = []
+        if not self.overlap: return
+        for phrase in self.phrases:
+            for overlap_phrase in phrase.overlapping_phrases:
+                if not overlap_phrase.turn: continue 
+                if overlap_phrase.turn not in self.overlapping_turns:
+                    self.overlapping_turns.append(overlap_phrase.turn)
+                
+
+    def extract_audio(self):
+        self.turn_index = self.table.turns.index(self)
+        self.wav_filename = turn_dir + self.table.identifier 
+        self.wav_filename += '_ti-' + str(self.turn_index) 
+        self.wav_filename += '_ch-' + str(self.channel) + '.wav'
+        if os.path.isfile(self.wav_filename): return
+        cmd = 'sox ' + self.table.wav_filename + ' ' + self.wav_filename + ' '
+        cmd += 'remix ' + str(self.channel) + ' trim ' + str(self.start_time)
+        cmd += ' ' + str(self.duration)
+        print(cmd)
+        os.system(cmd)
+
+    def play(self):
+        print(self.text)
+        print('play')
+        cmd = 'sox ' + self.table.wav_filename + ' -p trim '
+        cmd += str(self.start_time) + ' ' + str(self.duration)
+        cmd += ' remix ' + str(self.channel)
+        cmd += ' | play -'
+        print(cmd)
+        os.system(cmd)
+
+        
 
 class Phrase:
     '''
@@ -83,12 +172,15 @@ class Phrase:
         self.wav_filename = phrase_dir + self.table.identifier + '_pi-'
         self.wav_filename += str(self.phrase_index) + '_ch-' + str(self.channel) +'.wav'
         self.extract_audio()
+        self.part_of_turn = False
+        self.turn = None
 
     def extract_audio(self):
         if os.path.isfile(self.wav_filename): return
         cmd = 'sox ' + self.table.wav_filename + ' ' + self.wav_filename + ' '
         cmd += 'remix ' + str(self.channel) + ' trim ' + str(self.start_time)
         cmd += ' ' + str(self.duration)
+        print(cmd)
         os.system(cmd)
 
     def play(self):
@@ -105,6 +197,10 @@ class Phrase:
     def times(self):
         return self.start_time, self.end_time
 
+    @property
+    def phrase_wav_file_exists(self):
+        return os.path.isfile(self.wav_filename)
+        
     
 
 
@@ -139,6 +235,11 @@ def phrase_to_db(phrase):
     db = o.decode('utf-8').split(' ')[0]
     return db
 
+def turn_to_db(turn):
+    f = turn.wav_filename
+    o = subprocess.check_output('praat get_db.praat ' + f, shell=True)
+    return db
+
 def make_all_phrases_db_list(tables = None):
     '''make all phrase audio files.'''
     if not tables: tables = make_all_tables()
@@ -150,4 +251,13 @@ def make_all_phrases_db_list(tables = None):
         fout.write('\n'.join(output))
     return output
             
+def make_all_turn_db_list(tables = None):
+    if not tables: tables = make_all_tables()
+    output = []
+    for table in tables:
+        for turn in table.turn:
+            output.append(turn.wav_filename + '\t' + turn_to_db(turn))
+    with open('../turn_db_list','w') as fout:
+        fout.write('\n'.join(output))
+    return output
             
