@@ -245,8 +245,12 @@ def make_all_phrases_db_list(tables = None):
     if not tables: tables = make_all_tables()
     output = []
     for table in tables:
+        print(table.table_filename)
         for phrase in table.phrases:
-            output.append(phrase.wav_filename + '\t' + phrase_to_db(phrase))
+            if not os.path.isfile(phrase.wav_filename): continue
+            try: db = phrase_to_db(phrase)
+            except: continue
+            output.append(phrase.wav_filename + '\t' + db)
     with open('../phrases_db_list','w') as fout:
         fout.write('\n'.join(output))
     return output
@@ -255,8 +259,12 @@ def make_all_turn_db_list(tables = None):
     if not tables: tables = make_all_tables()
     output = []
     for table in tables:
+        print(table.table_filename)
         for turn in table.turn:
-            output.append(turn.wav_filename + '\t' + turn_to_db(turn))
+            if not os.path.isfile(turn.wav_filename): continue
+            try: db = turn_to_db(turn)
+            except: continue
+            output.append(turn.wav_filename + '\t' + db)
     with open('../turn_db_list','w') as fout:
         fout.write('\n'.join(output))
     return output
