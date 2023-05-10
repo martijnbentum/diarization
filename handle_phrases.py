@@ -57,10 +57,12 @@ class Table:
 
     def _make_turns(self):
         self.turns = []
+        turn_index = 0
         for phrase in self.phrases:
             if phrase.part_of_turn: continue
             if not phrase.phrase_wav_file_exists: continue
-            self.turns.append(Turn(self, phrase))
+            self.turns.append(Turn(self, phrase, turn_index))
+            turn_index +=1
         self.non_overlapping_turns = []
         for turn in self.turns:
             if not turn.overlap: self.non_overlapping_turns.append(turn)
@@ -68,9 +70,10 @@ class Table:
 
 
 class Turn:
-    def __init__(self,table,phrase, silence_delta = 0.5):
+    def __init__(self,table,phrase, turn_index, silence_delta = 0.5):
         self.table = table
         self.start_phrase = phrase
+        self.turn_index = turn_index
         self.silence_delta = silence_delta
         self._find_other_phrases()
         self._set_info()
@@ -107,6 +110,9 @@ class Turn:
         self.end_phrase = self.phrases[-1]
         self.overlap = True if sum([p.overlap for p in self.phrases]) > 0 else False
         self.text = ' '.join([p.text for p in self.phrases])
+        self.wav_filename = turn_dir + self.table.identifier 
+        self.wav_filename += '_ti-' + str(self.turn_index) 
+        self.wav_filename += '_ch-' + str(self.channel) + '.wav'
 
     def set_overlapping_turns(self):
         self.overlapping_turns = []
@@ -119,10 +125,6 @@ class Turn:
                 
 
     def extract_audio(self):
-        self.turn_index = self.table.turns.index(self)
-        self.wav_filename = turn_dir + self.table.identifier 
-        self.wav_filename += '_ti-' + str(self.turn_index) 
-        self.wav_filename += '_ch-' + str(self.channel) + '.wav'
         if os.path.isfile(self.wav_filename): return
         cmd = 'sox ' + self.table.wav_filename + ' ' + self.wav_filename + ' '
         cmd += 'remix ' + str(self.channel) + ' trim ' + str(self.start_time)
@@ -260,7 +262,7 @@ def make_all_turn_db_list(tables = None):
     output = []
     for table in tables:
         print(table.table_filename)
-        for turn in table.turn:
+        for turn in table.turns:
             if not os.path.isfile(turn.wav_filename): continue
             try: db = turn_to_db(turn)
             except: continue
