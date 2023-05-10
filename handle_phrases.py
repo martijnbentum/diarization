@@ -240,6 +240,7 @@ def phrase_to_db(phrase):
 def turn_to_db(turn):
     f = turn.wav_filename
     o = subprocess.check_output('praat get_db.praat ' + f, shell=True)
+    db = o.decode('utf-8').split(' ')[0]
     return db
 
 def make_all_phrases_db_list(tables = None):
