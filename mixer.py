@@ -31,13 +31,15 @@ def cmd_combine_audio_files_to_multi_track(filenames,output_filename):
 
 class Tracks:
     '''object to hold multiple tracks to be mixed in multi track audio.'''
-    def __init__(self, turns, overlap = False): 
+    def __init__(self, turns, output_filename='default.wav', overlap = False ): 
         self.turns = turns
+        self.output_filename = output_filename
         self.overlap = overlap
         self.speaker_to_turns = turns_to_speaker_turn_dict(turns)
         self.ntracks = len(self.speaker_to_turns.keys())
         self.nturns = len(turns)
         self._add_tracks()
+        self.mix()
 
     def __repr__(self):
         m = 'speakers: ' + ', '.join(list(self.speaker_to_turns.keys()))
@@ -49,32 +51,29 @@ class Tracks:
         self.tracks = []
         channel = 1
         for speaker_id, turns in self.speaker_to_turns.items():
-            self.tracks.append(Track(channel, turns, speaker_id))
+            track = Track(channel, turns, speaker_id, self.output_filename)
+            self.tracks.append(track)
             channel += 1
 
     def mix(self):
         '''mix speaker turns into non overlapping recording.'''
         self._make_track_order()
-        for i,track in enumerate(self.track_order):
-            if track.done: continue
-            other_tracks = [t for t in self.tracks if t != track]
-            duration = track.turn.duration
-            if i == 0: pad_start(other_tracks, duration)
-            else: 
-                pad_end(other_tracks, duration)
-                track.add_padded_turn()
-            print(i,track.channel,len(track.padded_turns))
-            
+        for track in self.tracks:
+            track.mix(self.track_order, self.turn_order)
 
     def _make_track_order(self):
         '''create order of speaker turns.'''
         self.track_order = []
+        self.turn_order = []
         last_track = None
         for i in range(self.nturns):
             track_set = [track for track in self.tracks if track != last_track]
             track = random.sample(track_set, 1)[0]
-            self.track_order.append(track)
-            last_track = track
+            turn = track.get_next_turn()
+            if turn:
+                self.track_order.append(track)
+                self.turn_order.append(turn)
+                last_track = track
 
     def channel_to_track(self, channel):
         '''get track based on channel number.'''
@@ -87,37 +86,27 @@ class Tracks:
         for track in self.tracks:
             if track.holds_turn(turn): return track
         raise ValueError(turn, 'not found in any track')
-
-
-def pad_start(other_tracks, duration):
-    for track in other_tracks:
-        track.padded_turn.add_to_start(duration)
-def pad_end(other_tracks, duration):
-    for track in other_tracks:
-        if not track.done:
-            track.padded_turn.add_to_end(duration)
-        else: 
-            track.padded_turns[-1].add_to_end(duration)
         
 
 
 class Track:
     '''object to contain audio for one channel.'''
-    def __init__(self,channel, turns, speaker_id):
+    def __init__(self,channel, turns, speaker_id, output_filename):
         self.channel = channel
         self.turns = turns
         self.nturns = len(turns)
         self.speaker_id = speaker_id
         self.speaker = turns[0].speaker
+        self.output_filename = output_filename
         self.current_index = 0
         self.padded_turns = []
-        self.make_padded_turn()
-        self.done = False
+        name, ext = output_filename.split('.')
+        self.output_filename = name + '_channel-' + str(self.channel)
+        self.output_filename += '.' + ext
 
     def __eq__(self,other):
         if type(self) != type(other): return False
         return self.channel == other.channel
-
 
     def __repr__(self):
         m = 'channel: ' + str(self.channel)
@@ -128,26 +117,48 @@ class Track:
     def holds_turn(self,turn):
         return turn in self.turns
 
-    def make_padded_turn(self, start = 0):
-        if self.current_index >= self.nturns:
-            self.padded_turn = None
-            self.turn = None
-            self.done = True
-        else:
-            self.turn = self.turns[self.current_index]
-            self.padded_turn = Padded_turn(0, 0, self.turn, self)
-
-    def add_padded_turn(self):
-        if self.done:
-            print(track,'cannot add padded turn, track done, no more turns')
-            return
-        self.padded_turns.append(self.padded_turn)
-        self.current_index += 1
-        self.make_padded_turn()
-
     @property
     def duration(self):
         return round(sum([pt.duration for pt in self.padded_turns]),3)
+
+    def get_next_turn(self):
+        if self.current_index >= self.nturns: return
+        turn = self.turns[self.current_index]
+        self.current_index += 1
+        return turn
+
+    def mix(self,track_order, turn_order):
+        indices = self._get_indices(track_order)
+        for i,index in enumerate(indices):
+            turn = turn_order[index]
+            if i == 0 and index != 0:
+                turns = turn_order[:index]
+                start_pad = turns_to_duration(turns)
+            else: start_pad = 0
+            if i + 1 >= len(indices): 
+                if index < len(turn_order) -1:
+                    end_pad = turns_to_duration(turn_order[index+1:])
+                else:
+                    end_pad = 0 
+            else:
+                turns = turn_order[index + 1: indices[i+1]]
+                end_pad = turns_to_duration(turns)
+            padded_turn = Padded_turn(start_pad, end_pad, turn, self)
+            self.padded_turns.append(padded_turn)
+        self.indices = indices
+                
+    def _get_indices(self,track_order):
+        indices = []
+        for i, track in enumerate(track_order):
+            if track == self: indices.append(i)
+        return indices
+
+    @property
+    def sox_pad_cmd(self):
+        cmd = 'sox --combine sequence '
+        cmd += ' '.join([pt.sox_pad_cmd for pt in self.padded_turns])
+        cmd += ' -b 16 ' + self.output_filename
+        return cmd
 
 
 class Padded_turn:
@@ -156,7 +167,8 @@ class Padded_turn:
         self.end = end
         self.turn = turn
         self.track = track
-        self.turn_id = turn.wav_filename.split('/')[-1].split('.')[0]
+        self.turn_id = turn.turn_id
+        self.wav_filename = turn.wav_filename
 
     def __repr__(self):
         return 'padded turn: ' + self.turn_id
@@ -178,6 +190,12 @@ class Padded_turn:
     @property
     def end_time(self):
         return self.turn.duration + self.start
+
+    @property
+    def sox_pad_cmd(self):
+        cmd = '"|sox ' + self.wav_filename + ' -p pad '
+        cmd += str(self.start) + ' ' + str(self.end) + '"'
+        return cmd
 
 
 def turns_to_speaker_turn_dict(turns):
