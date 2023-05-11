@@ -113,6 +113,7 @@ class Turn:
         self.wav_filename = turn_dir + self.table.identifier 
         self.wav_filename += '_ti-' + str(self.turn_index) 
         self.wav_filename += '_ch-' + str(self.channel) + '.wav'
+        self.turn_id = self.wav_filename.split('/')[-1].split('.')[0]
 
     def set_overlapping_turns(self):
         self.overlapping_turns = []
