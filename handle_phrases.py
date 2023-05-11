@@ -103,7 +103,7 @@ class Turn:
         self.end_time = self.phrases[-1].end_time
         self.nphrases = len(self.phrases)
         self.nwords = sum([phrase.nwords for phrase in self.phrases])
-        self.duration = self.end_time - self.start_time
+        self.duration = round(self.end_time - self.start_time,3)
         self.speaker = self.start_phrase.speaker
         self.channel= self.start_phrase.channel
         self.recording = self.table.recording
