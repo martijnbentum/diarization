@@ -3,6 +3,8 @@ import ifadv_clean as ic
 import os
 import random
 
+random.seed(9)
+
 def check_files_exist(filenames):
     for filename in filenames:
         if not os.path.isfile(filename):
@@ -21,22 +23,24 @@ def cmd_concatenate_audio_files(filenames, silences, output_filename):
     cmd += '-b 16 ' + output_filename 
     return cmd
         
-def cmd_combine_audio_files_to_multi_track(filenames,output_filename):
+def cmd_combine_audio_files_to_multi_track(filenames,output_filename, mono = False):
     assert not os.path.isfile(output_filename)
     check_files_exist(filenames)
-    cmd = 'sox -M ' + ' '.join(filenames)
+    if mono: m = ' -m '
+    else: m = '-M '
+    cmd = 'sox' + m + ' '.join(filenames)
     cmd += ' ' + output_filename
     return cmd
 
 
 class Tracks:
     '''object to hold multiple tracks to be mixed in multi track audio.'''
-    def __init__(self, turns, output_filename='default.wav', overlap = False ): 
+    def __init__(self, turns, output_filename= '', overlap = False ): 
         self.turns = turns
-        self.output_filename = output_filename
         self.overlap = overlap
         self.speaker_to_turns = turns_to_speaker_turn_dict(turns)
         self.ntracks = len(self.speaker_to_turns.keys())
+        self._set_output_filename(output_filename)
         self.nturns = len(turns)
         self._add_tracks()
         self.mix()
@@ -51,7 +55,7 @@ class Tracks:
         self.tracks = []
         channel = 1
         for speaker_id, turns in self.speaker_to_turns.items():
-            track = Track(channel, turns, speaker_id, self.output_filename)
+            track = Track(channel, turns, speaker_id, self)
             self.tracks.append(track)
             channel += 1
 
@@ -75,6 +79,14 @@ class Tracks:
                 self.turn_order.append(turn)
                 last_track = track
 
+    def _set_output_filename(self, output_filename):
+        if output_filename: self.output_filename = output_filename
+        n = 'nch-' + str(self.ntracks)
+        n += '_spk-' + '-'.join(list(self.speaker_to_turns.keys()))
+        n += '.wav'
+        self.output_filename = n
+
+
     def channel_to_track(self, channel):
         '''get track based on channel number.'''
         track = self.tracks[channel-1]
@@ -86,22 +98,62 @@ class Tracks:
         for track in self.tracks:
             if track.holds_turn(turn): return track
         raise ValueError(turn, 'not found in any track')
+
+    def make(self):
+        for track in self.tracks:
+            track.make()
+        self.save_table()
+        self.make_mono()
+
+    def make_mono(self):
+        fn = []
+        for track in self.tracks:
+            if not os.path.isfile(track.output_filename): 
+                raise ValueError('non all audio tracks available',track.output_filename)
+            fn.append(track.output_filename)
+        name,ext = self.output_filename.split('.')
+        f = name + '_mono.' + ext
+        if os.path.isfile(f) and f.endswith('.wav'): os.system('rm ' + f)
+        cmd = cmd_combine_audio_files_to_multi_track(fn,f, mono=True)
+        print('make mono file with sox command: ',cmd)
+        os.system(cmd)
+
+
+    def save_table(self):
+        f = self.output_filename.replace('.wav','.txt')
+        with open(f,'w') as fout:
+            fout.write('\n'.join(self.table_lines()))
+
+    @property
+    def padded_turns(self):
+        o = []
+        for turn in self.turn_order:
+            o.append(turn.padded_turn)
+        return o
+            
+    def table_lines(self):
+        table_lines = []
+        for pt in self.padded_turns:
+            table_lines.append(pt.table_line)
+        return table_lines
         
 
 
 class Track:
     '''object to contain audio for one channel.'''
-    def __init__(self,channel, turns, speaker_id, output_filename):
+    def __init__(self,channel, turns, speaker_id, tracks):
         self.channel = channel
         self.turns = turns
         self.nturns = len(turns)
         self.speaker_id = speaker_id
+        self.tracks = tracks
         self.speaker = turns[0].speaker
-        self.output_filename = output_filename
+        self.output_filename = tracks.output_filename
         self.current_index = 0
         self.padded_turns = []
-        name, ext = output_filename.split('.')
-        self.output_filename = name + '_channel-' + str(self.channel)
+        name, ext = self.output_filename.split('.')
+        self.output_filename = name + '_ch-' + str(self.channel)
+        self.output_filename += '_spk-' + self.speaker.id
         self.output_filename += '.' + ext
 
     def __eq__(self,other):
@@ -144,6 +196,7 @@ class Track:
                 turns = turn_order[index + 1: indices[i+1]]
                 end_pad = turns_to_duration(turns)
             padded_turn = Padded_turn(start_pad, end_pad, turn, self)
+            turn.padded_turn = padded_turn
             self.padded_turns.append(padded_turn)
         self.indices = indices
                 
@@ -159,6 +212,21 @@ class Track:
         cmd += ' '.join([pt.sox_pad_cmd for pt in self.padded_turns])
         cmd += ' -b 16 ' + self.output_filename
         return cmd
+
+    @property
+    def table_lines(self):
+        table_lines = []
+        for pt in self.padded_turns:
+            table_lines.append(pt.table_line)
+        return table_lines
+            
+
+    def make(self):
+        print('saving audio mixed file', self.output_filename)
+        os.system(self.sox_pad_cmd)
+
+    
+       
 
 
 class Padded_turn:
@@ -181,15 +249,18 @@ class Padded_turn:
 
     @property
     def duration(self):
-        return round(self.turn.duration + self.start + self.end,3)
+        return self.turn.duration + self.start + self.end
 
     @property
     def start_time(self):
-        return self.start
+        turn_order = self.track.tracks.turn_order
+        i = turn_order.index(self.turn)
+        start_time = sum([turn.duration for turn in turn_order[:i]])
+        return round(start_time,3)
 
     @property
     def end_time(self):
-        return self.turn.duration + self.start
+        return round(self.start_time + self.turn.duration ,3)
 
     @property
     def sox_pad_cmd(self):
@@ -197,6 +268,14 @@ class Padded_turn:
         cmd += str(self.start) + ' ' + str(self.end) + '"'
         return cmd
 
+    @property
+    def table_line(self):
+        l = self.turn.speaker.id + '\t'
+        l += str(self.start_time) + '\t'
+        l += self.turn.text + '\t'
+        l += str(self.end_time)
+        return l
+        
 
 def turns_to_speaker_turn_dict(turns):
     d = {}
