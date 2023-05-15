@@ -13,30 +13,65 @@ import speakers
 phrase_dir = ifadv_clean.ifadv_dir + 'PHRASES/'
 turn_dir = ifadv_clean.ifadv_dir + 'TURNS/'
 
+
 def make_all_tables():
     o = []
     for f in ifadv_clean.table_fn:
         print(f)
         o.append(Table(f))
     return o
+
+class Tables:
+    def __init__(self):
+        self.tables = make_all_tables()
+        self._set_info()
+
+    def _set_info(self):
+        self.speakers = [] 
+        self.speaker_intensity_dict = {}
+        self.speaker_turn_dict = {}
+        self.speaker_phrase_dict = {}
+        self.speaker_duration_dict = {}
+        self.speaker_nword_dict = {}
+        for table in self.tables:
+            self.speakers.extend(table.speakers)
+            self.speaker_intensity_dict.update(table.speaker_intensity_dict)
+            self.speaker_phrase_dict.update(table.speaker_phrase_dict)
+            self.speaker_turn_dict.update(table.speaker_turn_dict)
+            self.speaker_duration_dict.update(table.speaker_duration_dict)
+            self.speaker_nword_dict.update(table.speaker_nword_dict)
+
+    def select_turns(self, speaker_ids): 
+        o = []
+        for speaker_id in speaker_ids:
+            o.extend( self.speaker_turn_dict[speaker_id] )
+        return o
+    
         
 
 class Table:
     '''
-    Transcription phrases for a single recordings
+    Transcription phrases for a single recording
     15 minutes of dialogues (two speakers)
     links to Phrase object which links to extract wav audio file of the phrase
     '''
     def __init__(self,table_filename):
         self.table_filename = table_filename
+        self.id = table_filename.split('/')[-1].split('_')[0]
         self.table = ifadv_clean.open_table(table_filename, 
             remove_empty_table_lines = True)
         self.wav_filename = table_to_wav_filename(self.table_filename)
         self.identifier = self.wav_filename.split('/')[-1].split('.')[0]
         self.recording = speakers.make_recording(self.wav_filename)
+        self.phrase_to_db = make_phrase_to_db_dict()
+        self.turn_to_db = make_turn_to_db_dict()
         self._make_phrases()
         self._make_turns()
+        self.speaker_ids = [speaker.id for speaker in self.speakers]
 
+    def __repr__(self):
+        m = self.id + ' | ' + ' '.join(self.speaker_ids)
+        return m
 
     def _make_phrases(self):
         self.phrases = []
@@ -45,13 +80,20 @@ class Table:
         self.nwords = sum([p.nwords for p in self.phrases])
         self.speaker_nword_dict = {}
         self.speaker_duration_dict = {}
+        self.phrase_intensities_dict = {}
         self.non_overlapping_phrases = []
+        self.speakers = []
         for phrase in self.phrases:
-            if phrase.speaker_name not in self.speaker_nword_dict.keys():
-                self.speaker_nword_dict[phrase.speaker_name] = 0
-                self.speaker_duration_dict[phrase.speaker_name] = 0
-            self.speaker_nword_dict[phrase.speaker_name] += phrase.nwords
-            self.speaker_duration_dict[phrase.speaker_name] += phrase.duration
+            speaker = phrase.speaker
+            if speaker not in self.speakers: self.speakers.append(speaker)
+            if speaker.id not in self.speaker_nword_dict.keys():
+                self.speaker_nword_dict[speaker.id] = 0
+                self.speaker_duration_dict[speaker.id] = 0
+                self.phrase_intensities_dict[speaker.id] = []
+            self.speaker_nword_dict[speaker.id] += phrase.nwords
+            self.speaker_duration_dict[speaker.id] += phrase.duration
+            if phrase.intensity:
+                self.phrase_intensities_dict[speaker.id].append(phrase.intensity)
             check_overlapping_phrases(phrase,self.phrases)
             if not phrase.overlap: self.non_overlapping_phrases.append(phrase)
 
@@ -64,9 +106,43 @@ class Table:
             self.turns.append(Turn(self, phrase, turn_index))
             turn_index +=1
         self.non_overlapping_turns = []
+        self.turn_intensities_dict = {}
         for turn in self.turns:
             if not turn.overlap: self.non_overlapping_turns.append(turn)
             turn.set_overlapping_turns()
+            if not turn.intensity: continue
+            speaker = turn.speaker
+            if speaker.id not in self.turn_intensities_dict.keys():
+                self.turn_intensities_dict[speaker.id] = []
+            self.turn_intensities_dict[speaker.id].append(turn.intensity)
+
+    @property
+    def speaker_intensity_dict(self):
+        d = {}
+        for speaker_id, db in self.phrase_intensities_dict.items():
+            avg = round(sum(db) / len(db), 3)
+            d[speaker_id] = avg
+        return d
+
+    @property
+    def speaker_turn_dict(self):
+        d = {}
+        for turn in self.turns:
+            speaker = turn.speaker
+            if speaker.id not in d.keys(): d[speaker.id] = []
+            d[speaker.id].append(turn)
+        return d
+
+    @property
+    def speaker_phrase_dict(self):
+        d = {}
+        for phrase in self.phrases:
+            speaker = phrase.speaker
+            if speaker.id not in d.keys(): d[speaker.id] = []
+            d[speaker.id].append(phrase)
+        return d
+            
+        
 
 
 class Turn:
@@ -114,6 +190,8 @@ class Turn:
         self.wav_filename += '_ti-' + str(self.turn_index) 
         self.wav_filename += '_ch-' + str(self.channel) + '.wav'
         self.turn_id = self.wav_filename.split('/')[-1].split('.')[0]
+        try:self.intensity = self.table.turn_to_db[self.wav_filename]
+        except: self.intensity = None
 
     def set_overlapping_turns(self):
         self.overlapping_turns = []
@@ -177,6 +255,8 @@ class Phrase:
         self.extract_audio()
         self.part_of_turn = False
         self.turn = None
+        try:self.intensity = self.table.phrase_to_db[self.wav_filename]
+        except:self.intensity = None
 
     def extract_audio(self):
         if os.path.isfile(self.wav_filename): return
@@ -272,4 +352,20 @@ def make_all_turn_db_list(tables = None):
     with open('../turn_db_list','w') as fout:
         fout.write('\n'.join(output))
     return output
+
+def make_turn_to_db_dict():
+    return read_table('../turn_db_list')
+
+def make_phrase_to_db_dict():
+    return read_table('../phrases_db_list')
+
+def read_table(filename):
+    with open(filename) as fin:
+        t = fin.read().split('\n')
+    d = {}
+    for line in t:
+        filename, db = line.split('\t')
+        d[filename] = float(db)
+    return d
+            
             
