@@ -33,6 +33,7 @@ class Tables:
         self.speaker_phrase_dict = {}
         self.speaker_duration_dict = {}
         self.speaker_nword_dict = {}
+        self.d = {}
         for table in self.tables:
             self.speakers.extend(table.speakers)
             self.speaker_intensity_dict.update(table.speaker_intensity_dict)
@@ -40,6 +41,7 @@ class Tables:
             self.speaker_turn_dict.update(table.speaker_turn_dict)
             self.speaker_duration_dict.update(table.speaker_duration_dict)
             self.speaker_nword_dict.update(table.speaker_nword_dict)
+            self.d[table.id] =table
 
     def select_turns(self, speaker_ids): 
         o = []
@@ -47,7 +49,13 @@ class Tables:
             o.extend( self.speaker_turn_dict[speaker_id] )
         return o
     
-        
+    def select_tables(self,table_ids):
+        tables, turns = [], []
+        for table_id in table_ids:
+            tables.append(self.d[table_id])
+            turns.extend(self.d[table_id].turns)
+        return tables, turns
+
 
 class Table:
     '''
@@ -70,7 +78,7 @@ class Table:
         self.speaker_ids = [speaker.id for speaker in self.speakers]
 
     def __repr__(self):
-        m = self.id + ' | ' + ' '.join(self.speaker_ids)
+        m = self.id + ' | ' + ' | '.join([s.__repr__() for s in self.speakers])
         return m
 
     def _make_phrases(self):
@@ -161,6 +169,11 @@ class Turn:
         m += str(self.nphrases).ljust(2) + ' | s: '
         m += self.start_phrase.speaker_name
         return m
+
+    def __gt__(self,other):
+        if type(self) != type(other): raise ValueError(other,'not Turn')
+        return self.start_time > other.start_time
+        
 
     def _find_other_phrases(self):
         self.phrases = [self.start_phrase]
