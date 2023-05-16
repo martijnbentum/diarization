@@ -5,6 +5,9 @@ import random
 
 random.seed(9)
 
+home_dir = os.path.expanduser('~') + '/'
+output_dir = home_dir + 'mixed_audio/'
+
 def check_files_exist(filenames):
     for filename in filenames:
         if not os.path.isfile(filename):
@@ -23,7 +26,7 @@ def cmd_concatenate_audio_files(filenames, silences, output_filename):
     cmd += '-b 16 ' + output_filename 
     return cmd
         
-def cmd_combine_audio_files_to_multi_track(filenames,output_filename, mono = False):
+def cmd_combine_audio_files_to_multi_track(filenames,output_filename,mono=False):
     assert not os.path.isfile(output_filename)
     check_files_exist(filenames)
     if mono: m = ' -m '
@@ -36,7 +39,7 @@ def cmd_combine_audio_files_to_multi_track(filenames,output_filename, mono = Fal
 class Tracks:
     '''object to hold multiple tracks to be mixed in multi track audio.'''
     def __init__(self, turns, output_filename= '', overlap = False ): 
-        self.turns = turns
+        self.turns = check_audio_file_turns(turns)
         self.overlap = overlap
         self.speaker_to_turns = turns_to_speaker_turn_dict(turns)
         self.ntracks = len(self.speaker_to_turns.keys())
@@ -61,9 +64,16 @@ class Tracks:
 
     def mix(self):
         '''mix speaker turns into non overlapping recording.'''
+        if self.overlap: return self._mix_overlap()
         self._make_track_order()
         for track in self.tracks:
             track.mix(self.track_order, self.turn_order)
+
+    def _mix_overlap(self):
+        self.turn_order = []
+        for track in self.tracks:
+            self.turn_order.extend(track.turns)
+            track.mix_overlap()
 
     def _make_track_order(self):
         '''create order of speaker turns.'''
@@ -81,10 +91,12 @@ class Tracks:
 
     def _set_output_filename(self, output_filename):
         if output_filename: self.output_filename = output_filename
-        n = 'nch-' + str(self.ntracks)
+        n = ''
+        if self.overlap: n += 'overlap_'
+        n += 'nch-' + str(self.ntracks)
         n += '_spk-' + '-'.join(list(self.speaker_to_turns.keys()))
         n += '.wav'
-        self.output_filename = n
+        self.output_filename = output_dir + n
 
 
     def channel_to_track(self, channel):
@@ -100,16 +112,24 @@ class Tracks:
         raise ValueError(turn, 'not found in any track')
 
     def make(self):
+        if self.overlap: return self._make_overlap()
         for track in self.tracks:
             track.make()
         self.save_table()
         self.make_mono()
 
+    def _make_overlap(self):
+        for track in self.tracks:
+            track.make_overlap()
+        self.save_table()
+        
+
     def make_mono(self):
         fn = []
         for track in self.tracks:
             if not os.path.isfile(track.output_filename): 
-                raise ValueError('non all audio tracks available',track.output_filename)
+                raise ValueError('non all audio tracks available',
+                    track.output_filename)
             fn.append(track.output_filename)
         name,ext = self.output_filename.split('.')
         f = name + '_mono.' + ext
@@ -199,6 +219,13 @@ class Track:
             turn.padded_turn = padded_turn
             self.padded_turns.append(padded_turn)
         self.indices = indices
+
+    def mix_overlap(self):
+        for turn in self.turns:
+            padded_turn = Padded_turn(0,0, turn, self)
+            turn.padded_turn = padded_turn
+            self.padded_turns.append(padded_turn)
+
                 
     def _get_indices(self,track_order):
         indices = []
@@ -214,6 +241,14 @@ class Track:
         return cmd
 
     @property
+    def overlap_sox_cmd(self):
+        fn = turns_to_filenames(self.turns)
+        if os.path.isfile(self.output_filename):
+            if self.output_filename.endswith('.wav'):
+                os.system('rm ' + self.output_filename)
+        return 'sox ' + ' '.join(fn) + ' -b 16 ' + self.output_filename
+
+    @property
     def table_lines(self):
         table_lines = []
         for pt in self.padded_turns:
@@ -224,6 +259,11 @@ class Track:
     def make(self):
         print('saving audio mixed file', self.output_filename)
         os.system(self.sox_pad_cmd)
+
+    def make_overlap(self):
+        print('saving audio overlap file', self.output_filename)
+        os.system(self.overlap_sox_cmd)
+    
 
     
        
@@ -253,7 +293,10 @@ class Padded_turn:
 
     @property
     def start_time(self):
-        turn_order = self.track.tracks.turn_order
+        if self.track.tracks.overlap:
+            turn_order = self.track.turns
+        else:
+            turn_order = self.track.tracks.turn_order
         i = turn_order.index(self.turn)
         start_time = sum([turn.duration for turn in turn_order[:i]])
         return round(start_time,3)
@@ -286,3 +329,23 @@ def turns_to_speaker_turn_dict(turns):
 
 def turns_to_duration(turns):
     return sum([t.duration for t in turns])
+
+def turns_to_filenames(turns):
+    fn = []
+    turns = check_audio_file_turns(turns)
+    return [t.wav_filename for t in turns]
+
+def shortest_track_duration(tracks):
+    shortest = 10**9
+    for track in tracks:
+        duration = turns_to_duration(track.turns)
+        if duration < shortest: shortest = duration
+    return shortest
+        
+def check_audio_file_turns(turns):
+    output = []
+    for turn in turns:
+        if os.path.isfile(turn.wav_filename):
+            output.append(turn)
+    return output
+        
