@@ -8,6 +8,26 @@ random.seed(9)
 home_dir = os.path.expanduser('~') + '/'
 output_dir = home_dir + 'mixed_audio/'
 
+def make_tone(filename = 'tone.wav'):
+    cmd = 'sox -b 16 -n ' + filename +' synth 1 sine 500'
+    os.system(cmd)
+    return cmd
+
+def make_start_tone(filename = 'start_tone.wav'):
+    make_tone()
+    cmd = 'sox --combine sequence "| sox tone.wav -p pad 1 3"'
+    cmd += ' "|sox tone.wav  -p pad 0 1"'
+    cmd += ' -b 16 ' + filename
+    os.system(cmd)
+    return cmd
+
+
+def add_start_tone(input_filename, output_filename):
+    cmd = 'sox start_tone.wav ' + input_filename + ' ' + output_filename
+    os.system(cmd)
+    return cmd
+    
+
 def check_files_exist(filenames):
     for filename in filenames:
         if not os.path.isfile(filename):
