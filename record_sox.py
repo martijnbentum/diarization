@@ -18,7 +18,7 @@ def stop_recording(filename = None):
 
 
 def _record(filename = 'def.wav', platform = None):
-    if 'macOs' in platform:
+    if 'macOS' in platform:
         print("starting recording at:", time.time())
         os.system('sox -d ' + filename + ' > /dev/null 2>&1')
     elif 'Linux' in platform:
