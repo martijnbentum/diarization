@@ -6,7 +6,8 @@ import random
 random.seed(9)
 
 home_dir = os.path.expanduser('~') + '/'
-output_dir = home_dir + 'mixed_audio/'
+# output_dir = home_dir + 'mixed_audio/'
+output_dir = '/Volumes/INTENSO/second_recording_session/'
 
 def make_tone(filename = 'tone.wav'):
     cmd = 'sox -b 16 -n ' + filename +' synth 1 sine 500'
@@ -183,8 +184,9 @@ class Track:
     '''object to contain audio for one channel.'''
     def __init__(self,channel, turns, speaker_id, tracks):
         self.channel = channel
-        self.turns = turns
-        self.nturns = len(turns)
+        self.turns_raw = turns
+        self._prune_turns_without_filename()
+        self.nturns = len(self.turns)
         self.speaker_id = speaker_id
         self.tracks = tracks
         self.speaker = turns[0].speaker
@@ -195,6 +197,12 @@ class Track:
         self.output_filename = name + '_ch-' + str(self.channel)
         self.output_filename += '_spk-' + self.speaker.id
         self.output_filename += '.' + ext
+
+    def _prune_turns_without_filename(self):
+        self.turns = []
+        for turn in self.turns_raw:
+            if not os.path.isfile(turn.wav_filename): continue
+            self.turns.append(turn)
 
     def __eq__(self,other):
         if type(self) != type(other): return False
