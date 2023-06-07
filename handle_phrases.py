@@ -5,6 +5,7 @@ Phrase object points to extracted phrase wav file and links to metadata
 '''
 
 import ifadv_clean
+import numpy as np
 import os
 import subprocess
 import play_audio
@@ -128,8 +129,13 @@ class Table:
     def speaker_intensity_dict(self):
         d = {}
         for speaker_id, db in self.phrase_intensities_dict.items():
-            avg = round(sum(db) / len(db), 3)
-            d[speaker_id] = avg
+            linear_values = [10**(x/10) for x in db]
+            avg_linear = sum(linear_values) / len(db)
+            avg_decibel = 10 * np.log10(avg_linear)
+            avg_db = round(avg_decibel, 3)
+            avg_simple = round(sum(db) / len(db), 3)
+            d[speaker_id] = {'avg':avg_db, 'avg_simple':avg_simple,
+                'min':min(db),'max':max(db)}
         return d
 
     @property
@@ -323,12 +329,15 @@ def check_overlapping_phrases(phrase,phrases):
         if phrase.check_overlap(p):
             phrase.overlapping_phrases.append(p)
     phrase.overlap = len(phrase.overlapping_phrases) > 0
+
+def wav_to_db(filename):
+    o = subprocess.check_output('praat get_db.praat ' + filename, shell=True)
+    db = o.decode('utf-8').split(' ')[0]
+    return db
         
 def phrase_to_db(phrase):
     '''compute intensity for a phrase with praat.'''
-    f = phrase.wav_filename
-    o = subprocess.check_output('praat get_db.praat ' + f, shell=True)
-    db = o.decode('utf-8').split(' ')[0]
+    db = wav_to_db(phrase.wav_filename)
     return db
 
 def turn_to_db(turn):
