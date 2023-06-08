@@ -9,7 +9,7 @@ home_dir = os.path.expanduser('~') + '/'
 # output_dir = home_dir + 'mixed_audio/'
 output_dir = '/Volumes/INTENSO/second_recording_session/'
 
-def make_tone(filename = 'tone.wav'):
+def make_tone(filename = 'tone.wav', frequency = 300):
     cmd = 'sox -b 16 -n ' + filename +' synth 1 sine 500'
     os.system(cmd)
     return cmd
