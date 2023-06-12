@@ -1,4 +1,5 @@
 import handle_phrases as ph
+import glob
 import ifadv_clean as ic
 import os
 import random
@@ -8,32 +9,71 @@ random.seed(9)
 home_dir = os.path.expanduser('~') + '/'
 # output_dir = home_dir + 'mixed_audio/'
 output_dir = '/Volumes/INTENSO/second_recording_session/'
+output_tone_dir = '/Volumes/INTENSO/second_recording_session_tone/'
 
-def make_tone(filename = 'tone.wav', frequency = 500):
+def add_audio_id_start_and_end_tone(audio_id_filename, mix_filename, output_filename):
+    cmd = 'sox ' + audio_id_filename + ' '
+    cmd +=  '../TONE/start_tone.wav '
+    cmd += mix_filename + ' '
+    cmd += '../TONE/end_tone.wav '
+    cmd += output_filename 
+    os.system(cmd)
+    return cmd
+
+def make_audio_ids():
+    fn = glob.glob('../RANDOM_WORDS/*.wav')
+    for f in fn:
+        make_identifier_audio_file(f, f.replace('../RANDOM_WORDS/','../AUDIO_ID/'))
+
+def make_identifier_audio_file(input_filename, output_filename):
+    cmd = 'sox --combine sequence'
+    cmd += ' "|sox ../TONE/tone_700.wav -p pad 1 1"'
+    cmd += ' "|sox ' + input_filename + ' -p pad 1 1"'
+    cmd += ' "|sox ../TONE/tone_700.wav -p pad 0 1"'
+    cmd += ' -b 16 ' + output_filename
+    print(cmd)
+    os.system(cmd)
+    return cmd
+
+def make_tone(frequency = 500):
+    filename = '../TONE/tone_' + str(frequency) + '.wav'
     cmd = 'sox -b 16 -n ' + filename +' synth 1 sine ' + str(frequency)
     os.system(cmd)
     return cmd
 
-def make_start_tone(filename = 'start_tone.wav'):
-    make_tone()
-    cmd = 'sox --combine sequence "| sox tone.wav -p pad 1 3"'
-    cmd += ' "|sox tone.wav  -p pad 0 1"'
-    cmd += ' -b 16 ' + filename
+def make_start_tone():
+    combine_tones([500,500])
+    os.system('cp ../TONE/sequence_500-500.wav ../TONE/start_tone.wav')
+
+def make_end_tone():
+    combine_tones([300,300])
+    os.system('cp ../TONE/sequence_300-300.wav ../TONE/end_tone.wav')
+
+def combine_tones(frequencies = [500,300]):
+    cmd = 'sox --combine sequence'
+    for i,frequency in enumerate(frequencies):
+        f = '../TONE/tone_' + str(frequency) + '.wav'
+        if not f: make_tone(frequency)
+        if i == 0: 
+            cmd +=' "| sox ' + f + ' -p pad 1 2"'
+        elif i == len(frequencies) - 1:
+            cmd +=' "| sox ' + f + ' -p pad 0 1"'
+        else:
+            cmd +=' "| sox ' + f + ' -p pad 0 2"'
+    filename = '../TONE/sequence_' + '-'.join(map(str,frequencies)) + '.wav'
+    cmd += ' -b 16 ' + filename 
     os.system(cmd)
     return cmd
-
 
 def add_start_tone(input_filename, output_filename):
     cmd = 'sox start_tone.wav ' + input_filename + ' ' + output_filename
     os.system(cmd)
     return cmd
-    
 
 def check_files_exist(filenames):
     for filename in filenames:
         if not os.path.isfile(filename):
             raise ValueError(filename, 'does not exist')
-
 
 def cmd_concatenate_audio_files(filenames, silences, output_filename):
     '''add audio files sequentially on same channel.'''
@@ -55,7 +95,6 @@ def cmd_combine_audio_files_to_multi_track(filenames,output_filename,mono=False)
     cmd = 'sox' + m + ' '.join(filenames)
     cmd += ' ' + output_filename
     return cmd
-
 
 class Tracks:
     '''object to hold multiple tracks to be mixed in multi track audio.'''
