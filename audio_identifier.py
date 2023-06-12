@@ -30,18 +30,22 @@ def record_random_word(say_word = True):
     record(word, output_filename)
     if say_word: say(word)
 
-def record_random_words(n, say_words = True):
+def record_random_words(n, output_dir = '../RANDOM_WORDS/', say_words = False):
     words = '_'.join(random_words(n))
-    output_filename = words
+    output_filename = output_dir + words
     record(words, output_filename)
     if say_words: say(words)
+    return words, output_filename
 
 def record(text, output_filename):
-    if '.' in output_filename:
+    f = output_filename.replace('../','')
+    if '.' in f:
         raise ValueError(output_filename,'should not contain extension')
     cmd = 'say -v Moira ' + text + ' -o ' + output_filename + '.aiff'
     os.system(cmd)
     print(cmd)
-    sox_cmd = 'sox ' + output_filename + '.aiff ' + output_filename + '.wav'
+    sox_cmd = 'sox ' + output_filename + '.aiff -r 48000 ' + output_filename + '.wav'
     os.system(sox_cmd)
     os.system('rm ' + output_filename + '.aiff')
+
+    
