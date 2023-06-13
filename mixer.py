@@ -101,7 +101,7 @@ class Tracks:
     def __init__(self, turns, output_filename= '', overlap = False ): 
         self.turns = check_audio_file_turns(turns)
         self.overlap = overlap
-        self.speaker_to_turns = turns_to_speaker_turn_dict(turns)
+        self.speaker_to_turns = turns_to_speaker_turn_dict(self.turns)
         self.ntracks = len(self.speaker_to_turns.keys())
         self._set_output_filename(output_filename)
         self.nturns = len(turns)
