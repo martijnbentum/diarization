@@ -12,16 +12,16 @@ tone_audio = '/Users/u050158/tone_mixed_audio/'
 mixed_tone_audio = '/Volumes/INTENSO/second_recording_session_tone/'
 mixed_combined_audio = '/Volumes/INTENSO/second_recording_session_combined/'
 
-def make_all_mixes(tables = None):
+def make_first_session_mixes(tables = None):
     if not tables: tables = handle_phrases.Tables()
-    make(tables = tables, tids = ['DVA1A','DVA2C','DVA24AK'])
-    make(tables = tables, tids = ['DVA1A','DVA24AK'])
-    make(tables = tables, tids = ['DVA1A'])
-    make(tables = tables, tids = ['DVA2C'])
-    make(tables = tables, tids = ['DVA24AK'])
+    make(tables = tables, tids = ['DVA1A','DVA2C','DVA24AK'],make_overlap=True)
+    make(tables = tables, tids = ['DVA1A','DVA24AK'], make_overlap = True)
+    make(tables = tables, tids = ['DVA1A'], make_overlap=True)
+    make(tables = tables, tids = ['DVA2C'], make_overlap=True)
+    make(tables = tables, tids = ['DVA24AK'], make_overlap=True)
 
 
-def make(tables = None, tids = ['DVA1A','DVA2C','DVA24AK']):
+def make(tables = None, tids = ['DVA1A','DVA2C','DVA24AK'], make_overlap = False):
     '''create a mix of the speakers in the listed recordings in tids
     tables is an object from the handle_phrases module to load all information of
     the IFADV recordings and transcriptions
@@ -33,7 +33,8 @@ def make(tables = None, tids = ['DVA1A','DVA2C','DVA24AK']):
     if not tables: tables = handle_phrases.Tables()
     ta, turns = tables.select_tables(tids)
     _make(turns, overlap = False)
-    _make(turns, overlap = True)
+    if make_overlap:
+        _make(turns, overlap = True)
 
 
 def _make(turns, overlap):
@@ -58,6 +59,18 @@ def get_all_table_ids():
         t = fin.read().split('\n')
     return t
 
+# second session
+
+def make_second_session_mixes(tables = None):
+    print('make mixes')
+    make_mixes(tables)
+    print('add audio ids and start and end tones')
+    make_group_id_to_audio_id_mapping(save = True)
+    add_tones_and_audio_ids_to_mixes()
+    print('combine to n speaker specific tracks')
+    make_all_combined_files()
+
+
 def make_recording_id_sets(n_recordings = 3):
     '''create sets of n_recordings, uses all recordings in IFADV and reuses
     recordings if the total number of recordings is not divisible by n_recordings
@@ -73,6 +86,7 @@ def make_recording_id_sets(n_recordings = 3):
         other_ids = [x for x in table_ids if x not in ids]
         n = n_recordings - len(ids)
         output.append(ids + random.sample(other_ids,n))
+    if n_recordings ==1: output.pop(output.index(['DVA17AC']))
     return output
         
 def recording_sets_to_mix(tables, recording_sets):
@@ -115,7 +129,8 @@ def make_group_id_to_audio_id_mapping(save = False):
     for group_id, audio_id in zip(d.keys(), audio_ids):
         o.append([group_id, audio_id])
     if save:
-        with open(mixed_tone_audio + 'mix_id_to_audio_id_mapping.txt', 'w') as fout:
+        output_filename = mixed_combined_audio + 'mix_id_to_audio_id_mapping.txt'
+        with open(output_filename, 'w') as fout:
             fout.write('\n'.join(['\t'.join(line) for line in o]))
     return o
         
