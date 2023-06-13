@@ -1,14 +1,16 @@
 import multiprocessing
+import glob
 import os
 import scheduler
 import subprocess
 import time
 
+
 def record(filename, platform =None, seconds = None):
     p = start_recording(filename, platform)
     if seconds:
         stopper = scheduler.every(seconds, function = stop_recording, 
-            maximum_nexecuters=1, args=(filename), n_times = 1)
+            maximum_nexecuters=1, args=(filename,), n_times = 1)
     return p
 
 def stop_recording(filename = None):
@@ -58,15 +60,20 @@ def print_sox_pid(filename = None):
     
     
 def _handle_duration(d):
-    x = d['duration']
-    d['samples'] = int(x.split(' ')[2])
-    s = x.split(' ')[0].split(':')
-    s = int(s[0]) * 3600 + int(s[1]) * 60 + float(s[2])
-    d['duration_seconds'] = s
+    try:
+        x = d['duration']
+        d['samples'] = int(x.split(' ')[2])
+        s = x.split(' ')[0].split(':')
+        s = int(s[0]) * 3600 + int(s[1]) * 60 + float(s[2])
+        d['duration_seconds'] = s
+    except KeyError:
+        d['samples'] = None
+        d['duration_seconds'] = None
     return d
 
 
 def get_sox_info(filename):
+    if not os.path.isfile(filename): return None
     t = subprocess.check_output(['sox','--i',filename]).decode().split('\n')
     names = 'Input File,Channels,Sample Rate,Duration,File Size'.split(',')
     d = {}
@@ -105,5 +112,33 @@ def start_playing(filename):
 def play(filename):
     p = start_playing(filename)
     return p
+
+def move_empty_turns():
+    from handle_phrases import turn_dir
+    output_dir = '../BAD_TURNS/'
+    fn = glob.glob(turn_dir + '*.wav') 
+    for f in fn:
+        d = get_sox_info(f)
+        if not d or d['duration_seconds'] == None:
+            print('moving ', f, f.replace(turn_dir, output_dir)) 
+            os.system('cp ' + f + ' ' + f.replace(turn_dir, output_dir))
+
+def check_turn_duration(tables):
+    from handle_phrases import turn_dir
+    from make_mix import get_all_table_ids
+    table_ids = get_all_table_ids()
+    fn = glob.glob(turn_dir + '*.wav') 
+    bads = []
+    for table_id in table_ids:
+        print(table_id)
+        ta, turns = tables.select_tables([table_id])
+        for turn in turns:
+            d = get_sox_info(turn.wav_filename)
+            if not d: continue
+            if d['duration_seconds'] != turn.duration:
+                print(turn.wav_filename,d)
+                bads.append([turn,d])
+    return bads
+        
 
 
