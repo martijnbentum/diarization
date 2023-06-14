@@ -7,13 +7,16 @@ import time
 
 
 def record(filename, platform =None, seconds = None):
+    if not filename.endswith('.wav'): 
+        raise ValueError(filename, 'does not endwith .wav')
     p = start_recording(filename, platform)
     if seconds:
         stopper = scheduler.every(seconds, function = stop_recording, 
-            maximum_nexecuters=1, args=(filename,), n_times = 1)
+            maximum_nexecuters=1, n_times = 1)
     return p
 
 def stop_recording(filename = None):
+    print('stop recording:',filename)
     pids = get_sox_pids(filename)
     for pid in pids:
         os.system('kill ' + pid)
