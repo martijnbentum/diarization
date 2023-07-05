@@ -7,8 +7,8 @@ import time
 
 
 def record(filename, platform =None, seconds = None):
-    if not filename.endswith('.wav'): 
-        raise ValueError(filename, 'does not endwith .wav')
+    if not filename.endswith('.wav') or not filename.endswith('.flac'): 
+        raise ValueError(filename, 'does not endwith .wav or .flac')
     p = start_recording(filename, platform)
     if seconds:
         stopper = scheduler.every(seconds, function = stop_recording, 
