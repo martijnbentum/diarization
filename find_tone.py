@@ -1,10 +1,65 @@
 import numpy as np
 import scipy.io.wavfile as wav
 import scipy.signal as signal
+import pyaudio
 
 # used chatgpt for setup with the following prompts:
 # i want to detect the onset of a pure tone in an audio recording with fft
 # can you give a python implementation
+
+def audio_input_to_np_array(sample_rate = 44100, seconds = 1, 
+    buffer = 1024, input_device_index = 0):
+    p = pyaudio.PyAudio()
+    audio = pyaudio.PyAudio()
+    stream = audio.open(format = pyaudio.paInt16, channels = 1,
+        rate = sample_rate, frames_per_buffer= buffer,
+        input = True, input_device_index = input_device_index)
+    audio_data = stream.read( int(sample_rate * seconds) )
+    audio_data = np.frombuffer(audio_data, dtype = np.int16)
+
+    stream.stop_stream()
+    stream.close()
+    audio.terminate()
+
+    return audio_data
+    
+
+class Tone_detector:
+    def __init__(self, frequency = 500, seconds = 1, sample_rate = 44100, 
+        buffer = 1024):
+        self.frequency = frequency
+        self.seconds = seconds 
+        self.sample_rate = sample_rate
+        self.buffer = buffer
+
+    def start(self):
+        self.go_on = True
+        
+    def _listen(self):
+
+        p = pyaudio.PyAudio()
+        audio = pyaudio.PyAudio()
+        stream = audio.open(format = pyaudio.paInt16, channels = 1,
+            rate = self.sample_rate, frames_per_buffer= self.buffer,
+            input = True, input_device_index = 0)
+        '''
+        for i in range(0, int(self.sample_rate/ self.chunk * seconds)):
+            data = self.stream.read(chunk)
+            frames.append(data)
+        '''
+        audio_data = stream.read( int(self.sample_rate * self.seconds) )
+        audio_data = np.frombuffer(audio_data, dtype = np.int16)
+
+        stream.stop_stream()
+        stream.close()
+        audio.terminate()
+
+        return audio_data
+
+
+        
+
+
 
 def load_audio(filename):
     sample_rate, audio_data = wav.read(filename)
@@ -94,4 +149,6 @@ def _get_timestamps(sr, samples):
 
 def _find_threshold(samples):
     return (np.max(samples) + np.median(samples))/ 2
+
+
 
