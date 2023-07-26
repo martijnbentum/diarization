@@ -15,11 +15,12 @@ phrase_dir = ifadv_clean.ifadv_dir + 'PHRASES/'
 turn_dir = ifadv_clean.ifadv_dir + 'TURNS/'
 
 
-def make_all_tables():
+def make_all_tables(sort_on_intensity = True):
     o = []
     for f in ifadv_clean.table_fn:
         print(f)
         o.append(Table(f))
+    o = sorted(o, key = lambda t: t.average_phrase_intensity, reverse = True)
     return o
 
 class Tables:
@@ -138,6 +139,7 @@ class Table:
                 'min':min(db),'max':max(db)}
         return d
 
+
     @property
     def speaker_turn_dict(self):
         d = {}
@@ -156,6 +158,9 @@ class Table:
             d[speaker.id].append(phrase)
         return d
             
+    @property
+    def average_phrase_intensity(self):
+        return np.mean([p.intensity for p in self.phrases if p.intensity])
         
 
 
@@ -386,8 +391,13 @@ def read_table(filename):
         t = fin.read().split('\n')
     d = {}
     for line in t:
+        if not line: continue
         filename, db = line.split('\t')
         d[filename] = float(db)
     return d
             
+
+def order_tables_on_db(tables = None):
+    if not tables: tables = make_all_tables()
+    
             
