@@ -8,8 +8,8 @@ import time
 
 def record(filename, platform =None, seconds = None):
     o = filename.split('.')
-    if len(o) == 1 or o[-1] not in ['wav','flac','raw']: 
-        raise ValueError(filename, 'does not endwith .wav or .flac or .raw')
+    if len(o) == 1 or o[-1] not in ['wav','flac','raw','w64']: 
+        raise ValueError(filename, 'does not endwith .wav or .flac or .raw, w64')
     p = start_recording(filename, platform)
     if seconds:
         stopper = scheduler.every(seconds, function = stop_recording, 
