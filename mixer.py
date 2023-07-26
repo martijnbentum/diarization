@@ -8,8 +8,8 @@ random.seed(9)
 
 home_dir = os.path.expanduser('~') + '/'
 # output_dir = home_dir + 'mixed_audio/'
-output_dir = '/Volumes/INTENSO/second_recording_session/'
-output_tone_dir = '/Volumes/INTENSO/second_recording_session_tone/'
+output_dir = '/Volumes/Expansion/third_recording_session/'
+output_tone_dir = '/Volumes/Expansion/third_recording_session_tone/'
 
 def add_audio_id_start_and_end_tone(audio_id_filename, mix_filename, output_filename):
     cmd = 'sox ' + audio_id_filename + ' '
@@ -38,6 +38,7 @@ def make_identifier_audio_file(input_filename, output_filename):
 def make_tone(frequency = 500):
     filename = '../TONE/tone_' + str(frequency) + '.wav'
     cmd = 'sox -b 16 -n ' + filename +' synth 1 sine ' + str(frequency)
+    cmd += ' vol 0.3'
     os.system(cmd)
     return cmd
 
@@ -100,6 +101,7 @@ class Tracks:
     '''object to hold multiple tracks to be mixed in multi track audio.'''
     def __init__(self, turns, output_filename= '', overlap = False ): 
         self.turns = check_audio_file_turns(turns)
+        print(len(self.turns), 'len turns')
         self.overlap = overlap
         self.speaker_to_turns = turns_to_speaker_turn_dict(self.turns)
         self.ntracks = len(self.speaker_to_turns.keys())
@@ -191,8 +193,10 @@ class Tracks:
                 raise ValueError('non all audio tracks available',
                     track.output_filename)
             fn.append(track.output_filename)
-        name,ext = self.output_filename.split('.')
-        f = name + '_mono.' + ext
+        path = self.output_filename.split('/')[0]
+        output_filename = self.output_filename.split('/')[-1]
+        name,ext = output_filename.split('.')
+        f = path + name + '_mono.' + ext
         if os.path.isfile(f) and f.endswith('.wav'): os.system('rm ' + f)
         cmd = cmd_combine_audio_files_to_multi_track(fn,f, mono=True)
         print('make mono file with sox command: ',cmd)
@@ -236,12 +240,14 @@ class Track:
         self.output_filename = name + '_ch-' + str(self.channel)
         self.output_filename += '_spk-' + self.speaker.id
         self.output_filename += '.' + ext
+        print(speaker_id,len(self.turns))
 
     def _prune_turns_without_filename(self):
         self.turns = []
         for turn in self.turns_raw:
             if not os.path.isfile(turn.wav_filename): continue
             self.turns.append(turn)
+        self.turns = self.turns[:250]
 
     def __eq__(self,other):
         if type(self) != type(other): return False
