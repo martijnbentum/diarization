@@ -53,7 +53,7 @@ class Controller:
         self.platform = platform.platform()
         self.name = name
         self.interval = interval
-        self.audio_filename = name + '.wav'
+        self.audio_filename = name + '.w64'
         self.filename = name + '.json'
         self.play_audio_filename = play_audio_filename
         self.start_time = None
