@@ -1,6 +1,6 @@
 import glob
 
-mix_directory = '/Volumes/INTENSO/second_recording_session/'
+mix_directory = '/Volumes/Expansion/third_recording_session/'
 
 def group_n_speakers(n_speakers = 6, directory =None):
     if directory == None: directory = mix_directory
