@@ -7,10 +7,10 @@ import os
 
 random.seed(9)
 
-mixed_audio = '/Volumes/INTENSO/second_recording_session/'
-tone_audio = '/Users/u050158/tone_mixed_audio/'
-mixed_tone_audio = '/Volumes/INTENSO/second_recording_session_tone/'
-mixed_combined_audio = '/Volumes/INTENSO/second_recording_session_combined/'
+mixed_audio = '/Volumes/Expansion/third_recording_session/'
+tone_audio = '/Users/martijn.bentum/tone_mixed_audio/'
+mixed_tone_audio = '/Volumes/Expansion/third_recording_session_tone/'
+mixed_combined_audio = '/Volumes/Expansion/third_recording_session_combined/'
 
 def make_first_session_mixes(tables = None):
     if not tables: tables = handle_phrases.Tables()
@@ -63,7 +63,7 @@ def get_all_table_ids():
 
 def make_second_session_mixes(tables = None):
     print('make mixes')
-    make_mixes(tables)
+    make_mixes_second_session(tables)
     print('add audio ids and start and end tones')
     make_group_id_to_audio_id_mapping(save = True)
     add_tones_and_audio_ids_to_mixes()
@@ -88,6 +88,12 @@ def make_recording_id_sets(n_recordings = 3):
         output.append(ids + random.sample(other_ids,n))
     if n_recordings ==1: output.pop(output.index(['DVA17AC']))
     return output
+
+        
+        
+    
+
+
         
 def recording_sets_to_mix(tables, recording_sets):
     '''a recordings set is a list of recording ids which are mixed together
@@ -99,7 +105,7 @@ def recording_sets_to_mix(tables, recording_sets):
         print('mixing set:', recording_set)
         make(tables = tables, tids = recording_set)
         
-def make_mixes(tables = None):
+def make_mixes_second_session(tables = None):
     '''create mixes of speakers with all IFADV recordings.
     mixes are created with 2 4 and 6 speakers
     all recordings are used to create the sets (see make_recording_id_sets).
@@ -174,6 +180,58 @@ def make_all_combined_files():
             print('saving channel:',channel_number)
             make_combined_file(filenames,channel_number,n_speakers)
 
-        
+# third session
+def make_third_session_mixes(tables = None):
+    print('make mixes')
+    if not tables: tables = handle_phrases.Tables()
+    recording_sets= recording_sets_grouped_on_intensity(tables.tables)
+    recording_sets_to_mix(tables, recording_sets)
+    print('add audio ids and start and end tones')
+    make_group_id_to_audio_id_mapping(save = True)
+    add_tones_and_audio_ids_to_mixes()
+    print('combine to n speaker specific tracks')
+    make_all_combined_files()
+
+def make_n_recording_id_sets_grouped_on_intensity(n_recordings = 3, 
+    tables = None):
+    '''create sets of n_recordings, uses all recordings in IFADV and reuses
+    recordings if the total number of recordings is not divisible 
+    by n_recordings
+    This function groups recordings with similar intensity
+    '''
+    if not tables: tables = handle_phrases.make_all_tables()
+    o= flat_list_to_list_of_lists(tables,3)
+    output = []
+    for line in o:
+        output.append([x.identifier for x in line])
+    return output
+
+def recording_sets_grouped_on_intensity(tables = None):
+    if not tables: tables = handle_phrases.make_all_tables()
+    output = make_n_recording_id_sets_grouped_on_intensity(3, tables)
+    oo = flat_list_to_list_of_lists(output,2)
+    for l1, l2 in oo:
+        for rec_id1,rec_id2 in zip(l1,l2):
+            if rec_id1 != rec_id2:
+                output.append([rec_id1,rec_id2])
+    ids = [[table.identifier] for table in tables]
+    output.extend(ids)
+    return output
+
+def flat_list_to_list_of_lists(flat_list,items_per_sub_list=3, reuse = True):
+    output, sub_list_items= [], []
+    for item in flat_list:
+        if len(sub_list_items) == items_per_sub_list:
+            output.append(sub_list_items)
+            sub_list_items = [item]
+        else: sub_list_items.append(item)
+    if len(sub_list_items) < items_per_sub_list and reuse:
+        for item in flat_list[::-1]:
+            if len(sub_list_items) == items_per_sub_list:
+                output.append(sub_list_items)
+                break
+            if item not in sub_list_items: 
+                sub_list_items.append(item)
+    return output
 
 
