@@ -18,3 +18,15 @@ def group_all_files(directory =None):
         d.update(group_n_speakers(n_speakers))
     return d
 
+def group_original_ifadv_channels():
+    fn = glob.glob('../../IFADV/CHANNELS/*.wav')
+    d = {}
+    for f in fn:
+        name = f.split('/')[-1].split('_')[0]
+        if name not in d.keys(): d[name] = []
+        d[name].append(f)
+    for name,fn in d.items():
+        d[name] = sorted(fn)
+    return d
+
+
