@@ -15,6 +15,17 @@ def handle_mxa_910():
     print(filename,output_dir)
     r = Recording(filename,output_dir)
     return r
+
+def handle_minidsp(filename = None, output_dir = None):
+    if not filename: 
+        filename = '/vol/tensusers3/mbentum/diarization_10-08-23/minidsp/track_1.wav'
+    if not output_dir: 
+        output_dir = '/vol/tensusers3/mbentum/diarization_10-08-23/minidsp/'
+    print(filename, output_dir)
+    r = Recording(filename, output_dir)
+    return r
+    
+    
     
 
 def pickle_recording(recording, directory = ''):
