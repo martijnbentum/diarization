@@ -4,3 +4,4 @@ OLD/
 *.wav
 *.txt
 .DS_Store/
+*.pickle
