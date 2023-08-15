@@ -2,64 +2,155 @@ import numpy as np
 import scipy.io.wavfile as wav
 import scipy.signal as signal
 import pyaudio
+import pickle
 
-# used chatgpt for setup with the following prompts:
-# i want to detect the onset of a pure tone in an audio recording with fft
-# can you give a python implementation
+def pickle_recording(recording, directory = ''):
+    f = recording.filename.split('/')[-1].split('.')[0] + '.pickle'
+    if directory and os.path.isdir(directory):
+        if not directory.endswith('/'): directory += '/'
+        f = directory + f
+        print('saving in dir:',directory, '\nfilename:',f)
+    else:print('saving in local folder',f)
+    recording.input_signal = None
+    with open(f,'wb') as fout:
+        pickle.dump(recording,fout)
 
-def audio_input_to_np_array(sample_rate = 44100, seconds = 1, 
-    buffer = 1024, input_device_index = 0):
-    p = pyaudio.PyAudio()
-    audio = pyaudio.PyAudio()
-    stream = audio.open(format = pyaudio.paInt16, channels = 1,
-        rate = sample_rate, frames_per_buffer= buffer,
-        input = True, input_device_index = input_device_index)
-    audio_data = stream.read( int(sample_rate * seconds) )
-    audio_data = np.frombuffer(audio_data, dtype = np.int16)
+def load_pickle_recording(wav_filename = '', directory = '', 
+    pickle_filename =''):
+    if wav_filename:
+        f = wav_filename.split('/')[-1].split('.')[0] + '.pickle'
+        if directory and os.path.isdir(directory):
+            if not directory.endswith('/'): directory += '/'
+            f = directory + f
+            print('loading in dir:',directory, '\nfilename:',f)
+        else:print('loading in local folder',f)
+    elif pickle_filename: f = pickle_filename
+    else: raise ValueError('provide wav_filename or pickle_filename')
+    with open(f,'rb') as fin:
+        recording = pickle.load(fin)
+    return recording
 
-    stream.stop_stream()
-    stream.close()
-    audio.terminate()
 
-    return audio_data
-    
+class Recording:
+    def __init__(self,filename, output_directory = ''):
+        self.filename = filename
+        self.output_directory = output_directory
+        self._set_audio()
+        self.handle_all_tones()
+        self.make_sections()
+        try: self.save()
+        except: print('could not pickle recording')
 
-class Tone_detector:
-    def __init__(self, frequency = 500, seconds = 1, sample_rate = 44100, 
-        buffer = 1024):
-        self.frequency = frequency
-        self.seconds = seconds 
+    def _set_audio(self):
+        sample_rate, input_signal = load_audio(self.filename)
         self.sample_rate = sample_rate
-        self.buffer = buffer
+        self.input_signal = input_signal
 
-    def start(self):
-        self.go_on = True
-        
-    def _listen(self):
+    def _handle_tones(self,frequency,name):
+        d = {'sample_rate':self.sample_rate,'input_signal':self.input_signal,
+            'frequency':frequency}
+        setattr(self, name, get_start_end_timestamps(**d))
 
-        p = pyaudio.PyAudio()
-        audio = pyaudio.PyAudio()
-        stream = audio.open(format = pyaudio.paInt16, channels = 1,
-            rate = self.sample_rate, frames_per_buffer= self.buffer,
-            input = True, input_device_index = 0)
-        '''
-        for i in range(0, int(self.sample_rate/ self.chunk * seconds)):
-            data = self.stream.read(chunk)
-            frames.append(data)
-        '''
-        audio_data = stream.read( int(self.sample_rate * self.seconds) )
-        audio_data = np.frombuffer(audio_data, dtype = np.int16)
+    def handle_all_tones(self):
+        frequencies = [700,500,300]
+        names = ['audio_id','start','end']
+        for frequency, name in zip(frequencies,names):
+            print('handling',name,frequency)
+            self._handle_tones(frequency,name)
 
-        stream.stop_stream()
-        stream.close()
-        audio.terminate()
+    def make_sections(self):
+        self.sections = make_sections(self)
 
-        return audio_data
-
+    def save(self):
+        pickle_recording(self, self.output_directory)
 
         
+class Section:
+    def __init__(self,audio_id_tones,start_tones,end_tones,
+        filename_recording,section_index):
+        self.audio_id_tones = audio_id_tones
+        self.start_tones = start_tones
+        self.end_tones = end_tones
+        self.filename_recording = filename_recording
+        self.section_index = section_index
+        self._set_info()
+
+    def __repr__(self):
+        m = 'section| start: '
+        m += str(self.start)
+        m += ' end: '
+        m += str(self.end)
+        m += ' dur: '
+        m += str(round(self.end - self.start,2))
+        m += ' ' + self.filename_recording.split('/')[-1]
+        m += ' ' + str(self.section_index)
+        return m
+
+    def _set_audio_id(self):
+        if not self.audio_id_tones: 
+            self.start_audio_id, self.end_audio_id = None, None
+            self.audio_ok = False
+        self.start_audio_id = self.audio_id_tones[0][1] + 2
+        self.end_audio_id = self.audio_id_tones[1][0] - 1
+        self.audio_ok = True
+ 
+    def _set_start(self):
+        if not self.start_tones: 
+            self.start= None
+            self.start_ok = False
+        self.start = self.start_tones[1][1] + 1
+    
+    def _set_end(self):
+        if not self.end_tones:
+            self.end = None
+            self.end_ok = False
+        self.end = self.end_tones[0][0] -1
+
+    def _set_info(self):
+        self._set_audio_id()
+        self._set_start()
+        self._set_end()
 
 
+def group_segments(segments, delta = 6):
+    found = False
+    output = []
+    for index,segment in enumerate(segments):
+        if found == False:
+            next_segment =segments[index + 1]
+            if next_segment[0] - segment[0] < delta:
+                output.append([segment,next_segment])
+                found = True
+        else: found = False
+    print('found pairs',len(output),'n segment',len(segments))
+    return output
+
+def find_closest(pair,other_pairs, before = True):
+    delta = 10**9
+    current_index = None
+    for index, other_pair in enumerate(other_pairs):
+        v = pair[0][0] - other_pair[0][0]
+        if v < 0 and before: continue
+        if v > 0 and not before: continue
+        v = abs(v)
+        if v < delta: 
+            current_index = index
+            delta = v
+    return other_pairs[current_index]
+        
+
+def make_sections(recording):
+    audio_id = group_segments(recording.audio_id)
+    start = group_segments(recording.start)
+    end= group_segments(recording.end)
+    sections = []
+    for index,start_tones in enumerate(start):
+        end_tones = find_closest(start_tones,end, False)
+        audio_id_tones = find_closest(start_tones,audio_id, True)
+        s = Section(audio_id_tones,start_tones,end_tones,recording.filename,
+            index)
+        sections.append(s)
+    return sections
 
 def load_audio(filename):
     sample_rate, audio_data = wav.read(filename)
@@ -67,21 +158,31 @@ def load_audio(filename):
         audio_data = audio_data[:, 1]
     return sample_rate, audio_data
 
-def get_start_end_timestamps(filename, frequency = 500):
-    sr, magnitudes= sliding_window_with_hamming(filename, frequency)
+def get_start_end_timestamps(filename = None, sample_rate = None, 
+    input_signal = None, frequency = 500):
+    d = {'filename':filename,'sample_rate':sample_rate,
+        'input_signal':input_signal,'frequency':frequency}
+    sr, magnitudes= sliding_window_with_hamming(**d)
     threshold = _find_threshold(magnitudes)
     timestamps = _get_timestamps(sr, magnitudes)
     output = []
     index = 0
-    while True:
-        start, end, index = find_segment(magnitudes, index, threshold)
-        if not start and not end: break
-        output.append([timestamps[start], timestamps[end]])
+    try:
+        while True:
+            start, end, index = find_segment(magnitudes, index, threshold)
+            if not start and not end: break
+            output.append([timestamps[start]-0.4, timestamps[end]-0.4])
+    except: 
+        print('error',index)
+        return timestamps, magnitudes
     return output
 
-def sliding_window_with_hamming(filename, frequency = 500, 
-    window_size_ms = 500):
-    sample_rate, input_signal = load_audio(filename)
+def sliding_window_with_hamming(filename = None, sample_rate = None,
+    input_signal = None, frequency = 500, window_size_ms = 500):
+    if filename == sample_rate == input_signal == None:
+        raise ValueError('provide filename or sample_rate & input_signal')
+    if type(input_signal) == type(None):
+        sample_rate, input_signal = load_audio(filename)
     window_size = int(window_size_ms / 1000 * sample_rate)
     hop_size = window_size // 2
     output_sample_rate = 1000 / (window_size_ms / 2)
@@ -140,7 +241,7 @@ def _check_conditions(index, samples, threshold,condition_type):
             threshold, 'is: ', samples[index])
     if condition_type == 'end' and samples[index] < threshold:
         raise ValueError('value at', index, 'should be higher than', 
-            threshold, 'is: ', samples[index])
+            threshold, 'is: ', samples[index], threshold-samples[index])
     
 def _get_timestamps(sr, samples):
     increments = 1/ sr
@@ -148,7 +249,11 @@ def _get_timestamps(sr, samples):
     return timestamps
 
 def _find_threshold(samples):
-    return (np.max(samples) + np.median(samples))/ 2
+    median = np.median(samples)
+    maximum = np.max(samples)
+    threshold = (maximum*1.5 + median)/ 2
+    print('median',median, 'max',maximum, 'threshold',threshold)
+    return threshold
 
 
 
