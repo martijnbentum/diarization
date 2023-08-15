@@ -3,7 +3,6 @@ import numpy as np
 import scipy.io.wavfile as wav
 import soundfile as sf
 import scipy.signal as signal
-import pyaudio
 import pickle
 
 def handle_mxa_910():
