@@ -1,8 +1,21 @@
+import glob
 import numpy as np
 import scipy.io.wavfile as wav
+import soundfile as sf
 import scipy.signal as signal
 import pyaudio
 import pickle
+
+def handle_mxa_910():
+    input_dir = '/media/mb/INTENSO/Opnamen MXA910 10 en 11-08-2023/'
+    input_dir += 'Dante 6ch + 1 ch automix 10-08-2023_21h sessie_Recorded/'
+    output_dir = '../shuremxa910/'
+    fn = glob.glob(input_dir + '*4.wav')
+    filename = fn[0]
+    print(filename,output_dir)
+    r = Recording(filename,output_dir)
+    return r
+    
 
 def pickle_recording(recording, directory = ''):
     f = recording.filename.split('/')[-1].split('.')[0] + '.pickle'
@@ -153,7 +166,10 @@ def make_sections(recording):
     return sections
 
 def load_audio(filename):
-    sample_rate, audio_data = wav.read(filename)
+    try:
+        sample_rate, audio_data = wav.read(filename)
+    except ValueError:
+        audio_data, sample_rate = sf.read(filename)
     if len(audio_data.shape) > 1:
         audio_data = audio_data[:, 1]
     return sample_rate, audio_data
