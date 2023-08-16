@@ -192,7 +192,7 @@ def load_audio(filename):
     return sample_rate, audio_data
 
 def get_start_end_timestamps(filename = None, sample_rate = None, 
-    input_signal = None, frequency = 500):
+    input_signal = None, frequency = 500, return_all = False):
     d = {'filename':filename,'sample_rate':sample_rate,
         'input_signal':input_signal,'frequency':frequency}
     sr, magnitudes= sliding_window_with_hamming(**d)
@@ -208,6 +208,7 @@ def get_start_end_timestamps(filename = None, sample_rate = None,
     except: 
         print('error',index)
         return timestamps, magnitudes
+    if return_all: return output, timestamps, magnitudes
     return output
 
 def sliding_window_with_hamming(filename = None, sample_rate = None,
@@ -227,7 +228,7 @@ def sliding_window_with_hamming(filename = None, sample_rate = None,
         windowed_frame = frame * window
         m = get_magnitude_at_frequency(frequency, windowed_frame,sample_rate)
         output_signal.append( m )
-    return output_sample_rate, output_signal, 
+    return output_sample_rate, output_signal
 
 def fft(audio_data):
     return np.fft.fft(audio_data)
