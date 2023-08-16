@@ -60,7 +60,8 @@ class Recording:
         self.output_directory = output_directory
         self._set_audio()
         self.handle_all_tones()
-        self.make_sections()
+        try:self.make_sections()
+        except:print('could not make sections')
         try: self.save()
         except: print('could not pickle recording')
 
@@ -139,6 +140,9 @@ def group_segments(segments, delta = 6):
     found = False
     output = []
     for index,segment in enumerate(segments):
+        if index +1 >= len(segments):
+            print('no segements left to group with',segement,index)
+            continue
         if found == False:
             next_segment =segments[index + 1]
             if next_segment[0] - segment[0] < delta:
@@ -163,8 +167,11 @@ def find_closest(pair,other_pairs, before = True):
         
 
 def make_sections(recording):
+    print('grouping audio id')
     audio_id = group_segments(recording.audio_id)
+    print('grouping start')
     start = group_segments(recording.start)
+    print('grouping end')
     end= group_segments(recording.end)
     sections = []
     for index,start_tones in enumerate(start):
