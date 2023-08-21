@@ -5,7 +5,7 @@ import subprocess
 import os
 
 #played audio and supporting files
-base ='/Volumes/INTENSO/third_session/'
+base ='/Volumes/INTENSO/diarization_10-08-23/third_session_play/'
 section_directory = base + 'third_recording_session/' 
 combined_directory = base + 'third_recording_session_combined/'
 mono_directory = base + 'third_recording_session_mono/'
@@ -14,6 +14,7 @@ original_directory = base + 'original/'
 original_tone_directory = base + 'original_tone/'
 original_combined_directory= base + 'original_combined/'
 audio_id_directory = '../AUDIO_ID/'
+random_word_directory = '../RANDOM_WORDS/'
 
 #recorded audio
 base_rec = '/Volumes/INTENSO/diarization_10-08-23/'
@@ -115,6 +116,7 @@ def _make_audio_infos():
     _make_audio_info('original_combined_audio_info.txt', 
         original_combined_directory)
     _make_audio_info('audio_id_audio_info.txt', audio_id_directory)
+    _make_audio_info('random_word_audio_info.txt', random_word_directory)
 
 def _make_audio_info(output_name, audio_dir= section_directory):
     fn = glob.glob(audio_dir + '*.wav')
