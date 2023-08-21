@@ -4,28 +4,7 @@ import scipy.io.wavfile as wav
 import soundfile as sf
 import scipy.signal as signal
 import pickle
-
-def handle_mxa_910():
-    input_dir = '/media/mb/INTENSO/Opnamen MXA910 10 en 11-08-2023/'
-    input_dir += 'Dante 6ch + 1 ch automix 10-08-2023_21h sessie_Recorded/'
-    output_dir = '../shuremxa910/'
-    fn = glob.glob(input_dir + '*4.wav')
-    filename = fn[0]
-    print(filename,output_dir)
-    r = Recording(filename,output_dir)
-    return r
-
-def handle_minidsp(filename = None, output_dir = None):
-    if not filename: 
-        filename = '/vol/tensusers3/mbentum/diarization_10-08-23/minidsp/track_1.wav'
-    if not output_dir: 
-        output_dir = '/vol/tensusers3/mbentum/diarization_10-08-23/minidsp/'
-    print(filename, output_dir)
-    r = Recording(filename, output_dir)
-    return r
-    
-    
-    
+import audio_identifier
 
 def pickle_recording(recording, directory = ''):
     f = recording.filename.split('/')[-1].split('.')[0] + '.pickle'
@@ -53,27 +32,25 @@ def load_pickle_recording(wav_filename = '', directory = '',
         recording = pickle.load(fin)
     return recording
 
+class Recordings:
+    def __init__(self):
+        self.audio_ids = audio_identifier.Audio_ids()
+        self.audios = self.audio_ids.audios
+        self.microphone_names = 'left_respeaker,minidsp,shure,grensvlak'
+        self.microphone_names = self.microphone_names.split(',')
+        self._make_recordings()
 
-class Recording:
-    def __init__(self,filename, output_directory = ''):
-        self.filename = filename
-        self.output_directory = output_directory
-        self._set_audio()
-        self.handle_all_tones()
-        try:self.make_sections()
-        except:print('could not make sections')
-        try: self.save()
-        except: print('could not pickle recording')
+    def _make_recordings(self):
+        self.recordings = []
+        for microphone_name in self.microphone_names:
+            recording = Recording(microphone_name, self)
+            self.recordings.append(recording)
 
     def _set_audio(self):
         sample_rate, input_signal = load_audio(self.filename)
         self.sample_rate = sample_rate
         self.input_signal = input_signal
 
-    def _handle_tones(self,frequency,name):
-        d = {'sample_rate':self.sample_rate,'input_signal':self.input_signal,
-            'frequency':frequency}
-        setattr(self, name, get_start_end_timestamps(**d))
 
     def handle_all_tones(self):
         frequencies = [700,500,300]
@@ -88,6 +65,31 @@ class Recording:
     def save(self):
         pickle_recording(self, self.output_directory)
 
+class Recording:
+    def __init__(self, microphone_name, recordings):
+        self.microphone_name = microphone_name
+        self.audio_index = 4
+        self.recordings = recordings
+        self.audios = self.recordings.audios[self.microphone_name]
+
+    def __repr__(self):
+        return 'recording ' + self.microphone_name
+
+    def _find_start(self):
+        self.audio_info = list(self.audios.values())[self.audio_index]
+        self.wav_filename = self.audio_info.path
+        self.sample_rate= self.audio_info.sample_rate
+        self.start_audio, sr = sf.read(self.wav_filename, start = 0,
+            stop = 300 * self.sample_rate)
+        self._handle_tones(500,self.start_audio,'start_tones_timestamps')
+
+    def _handle_tones(self,frequency, audio, name):
+        d = {'sample_rate':self.sample_rate,'input_signal':audio,
+            'frequency':frequency, 'return_all': True}
+        o, ts, m = get_start_end_timestamps(**d)
+        setattr(self, name, o)
+        self._magnitudes = m
+        self._timestamps = ts
         
 class Section:
     def __init__(self,audio_id_tones,start_tones,end_tones,
@@ -200,14 +202,15 @@ def get_start_end_timestamps(filename = None, sample_rate = None,
     timestamps = _get_timestamps(sr, magnitudes)
     output = []
     index = 0
-    try:
-        while True:
+    while True:
+        try:
             start, end, index = find_segment(magnitudes, index, threshold)
-            if not start and not end: break
-            output.append([timestamps[start]-0.4, timestamps[end]-0.4])
-    except: 
-        print('error',index)
-        return timestamps, magnitudes
+        except: 
+            index +=1
+        else:
+            if start and end:
+                output.append([timestamps[start]-0.4, timestamps[end]-0.4])
+        if index == None or index >= len(magnitudes): break
     if return_all: return output, timestamps, magnitudes
     return output
 
