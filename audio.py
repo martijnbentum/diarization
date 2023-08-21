@@ -38,7 +38,7 @@ def make_audio_info_dict():
         n_d = len(audio_infos[name])
         total_d += n_d
         total += n
-        print(f, n, total, n_d, total_d) 
+        # print(f, n, total, n_d, total_d) 
     return audio_infos
     
 
