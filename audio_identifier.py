@@ -2,6 +2,11 @@ import os
 from wonderwords import RandomWord
 r = RandomWord()
 
+audio_id_filename ='../mix_id_to_audio_id_mapping.txt'
+audio_id_original_filename='../audio_id_mapping_orginal_ifadv.txt'
+section_directory='/Volumes/INTENSO/diarization_10-08-23/third_session_play/'
+
+
 def random_word():
     word = r.word(include_parts_of_speech=['noun','adjectives'],
         word_max_length=8)
@@ -51,9 +56,6 @@ def record(text, output_filename):
     
 
 
-audio_id_filename ='../mix_id_to_audio_id_mapping.txt'
-audio_id_original_filename='../audio_id_mapping_orginal_ifadv.txt'
-section_directory = '/Volumes/INTENSO/third_session/third_recording_session'
 
 def open_mix_file(filename):
     with open(filename) as fin:
@@ -106,6 +108,7 @@ class Audio_id:
 
     def __repr__(self):
         m = self.section_name + ' ' + str(self.n_speakers)
+        m += ' ' + self.audio_id_word + ' '
         m += ' ri ' + str(self.recording_index) 
         m +=  ' si ' + str(self.section_set_index)
         m += ' ' + self.section_set_name
@@ -162,15 +165,22 @@ class Audio_id:
     def _estimate_timestamps(self):
         word = self.audio_id_word
         temp = self.audio_ids.audios['audio_id'][word]
+        # word plus tones
+        self.audio_id_duration = temp.seconds
+        temp = self.audio_ids.audios['random_word'][word]
+        #word duration only
         self.audio_id_word_duration = temp.seconds
         self.timestamps = Timestamps(self)
+        if self.audio_id_duration == self.audio_id_word_duration:
+            self.no_tones_audio_id = True
+        else: self.no_tones_audio_id = False
         
 class Timestamps:
     def __init__(self,audio_id):
         self.audio_id = audio_id
         self.recording_index = self.audio_id.recording_index
         self._set_previous()
-        self._estimate_tone()
+        self._estimate_tone_section()
         self._estimate_section()
 
     def _set_previous(self):
@@ -180,27 +190,37 @@ class Timestamps:
             audio_ids = self.audio_id.audio_ids.audio_ids
             self.previous_audio_id = audio_ids[previous_index]
 
-    def _estimate_tone(self):
+    def _estimate_tone_section(self):
         if self.recording_index == 0: 
-            self.start_tone = 0
+            self.start_tone_section = 0
         else: 
-            self.start_tone = self.previous_audio_id.timestamps.end_tone
-        self.end_tone = self.start_tone + self.audio_id.tone_audio[0].seconds
-        self.duration_tone = self.end_tone - self.start_tone
+            s =  self.previous_audio_id.timestamps.end_tone_section
+            self.start_tone_section = s
+        self.end_tone_section = self.start_tone_section 
+        self.end_tone_section = self.audio_id.tone_audio[0].seconds
+        self.duration_tone = self.end_tone_section - self.start_tone_section
 
     def _estimate_section(self):
-        self.preamble = 6
-        self.preamble += self.audio_id.audio_id_word_duration
-        self.start = self.start_tone + self.preamble
+        self.preamble_duration = 6
+        self.preamble_duration += self.audio_id.audio_id_duration
+        self.start = self.start_tone_section + self.preamble_duration
         self.end = self.start + self.audio_id.section_audio[0].seconds
         self.duration = self.end - self.start
         
     def estimate_sample_index_final_start_tone(self, sample_rate):
+        '''returns the estimated start index of the final start tone'''
         return int(round((self.start - 2) * sample_rate,0))
 
     def estimate_sample_index_first_end_tone(self, sample_rate):
+        '''returns the estimated start index of the first end tone'''
         return int(round((self.end + 1) * sample_rate,0))
        
+    def start_end_samples_audio_id_word(self,sample_rate):
+        word_duration = self.audio_id.audio_id_word_duration 
+        seconds = word_duration + 10 
+        start = int(round((self.start - seconds) * sample_rate,0))
+        end = int(round(start + (word_duration + 2)*sample_rate,0))
+        return start, end
         
 
 def _find_transcription_filename_section_mix(section_name):
