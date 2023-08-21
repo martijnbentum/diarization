@@ -1,6 +1,8 @@
 import glob
 
-mix_directory = '/Volumes/Expansion/third_recording_session/'
+# mix_directory = '/Volumes/Expansion/third_recording_session/'
+mix_directory='/Volumes/INTENSO/diarization_10-08-23/third_session_play/'
+mix_directory+='third_recording_session/'
 
 def group_n_speakers(n_speakers = 6, directory =None):
     if directory == None: directory = mix_directory
@@ -19,7 +21,9 @@ def group_all_files(directory =None):
     return d
 
 def group_original_ifadv_channels():
-    fn = glob.glob('../../IFADV/CHANNELS/*.wav')
+    path ='/Volumes/INTENSO/diarization_10-08-23/third_session_play/'
+    path +='original/*.wav'
+    fn = glob.glob(path)
     d = {}
     for f in fn:
         name = f.split('/')[-1].split('_')[0]
