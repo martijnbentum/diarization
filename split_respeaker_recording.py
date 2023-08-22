@@ -10,12 +10,12 @@ def split_respeaker_audio(filename, ext = '.wav'):
 
 # sox respeaker_aug_ede_politie_lang.w64 respeaker_ch-1.wav remix 1
 def split_grensvlak_audio():
-    filename = '/Volumes/INTENSO/grensvlak_11-08-23/T71_ISO.wav'
+    filename = '/Volumes/INTENSO/diarization_10-08-23/grensvlak/T71_ISO.wav'
     output_file = filename.replace('.wav','')
     print(os.path.isfile(filename),filename)
     for ch in range(1,4):
         cmd = 'sox ' + filename + ' ' + output_file
-        cmd += '_ch-' + str(ch) + '.wav' + ' remix ' + str(ch)
+        cmd += '_ch-' + str(ch) + '.w64' + ' remix ' + str(ch)
         print(cmd)
         os.system(cmd)
         
