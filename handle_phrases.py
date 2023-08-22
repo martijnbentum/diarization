@@ -58,6 +58,13 @@ class Tables:
             turns.extend(self.d[table_id].turns)
         return tables, turns
 
+    def save_all_tables_as_text_files(self):
+        texts = {}
+        for table in self.tables:
+            text =table.save_as_text_file()
+            texts[table.id] = text
+        return texts
+
 
 class Table:
     '''
@@ -162,6 +169,17 @@ class Table:
     def average_phrase_intensity(self):
         return np.mean([p.intensity for p in self.phrases if p.intensity])
         
+    def save_as_text_file(self):
+        text = []
+        f = '../PLAY_TRANSCRIPTION_TABLES/' + self.id + '.txt'
+        for turn in self.turns:
+            line = turn.make_line()
+            if not line: continue
+            text.append('\t'.join(line))
+        text = '\n'.join(text)
+        with open(f,'w') as fout:
+            fout.write(text) 
+        return text
 
 
 class Turn:
@@ -245,6 +263,14 @@ class Turn:
         print(cmd)
         os.system(cmd)
 
+
+    def make_line(self):
+        if not os.path.isfile(self.wav_filename): return None 
+        start = str(self.start_time)
+        end = str(self.end_time)
+        text = self.text
+        speaker = self.speaker.id
+        return [speaker,start,text,end]
         
 
 class Phrase:
