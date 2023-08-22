@@ -5,6 +5,11 @@ import soundfile as sf
 import scipy.signal as signal
 import pickle
 import audio_identifier
+import os
+
+class Channel_info():
+    def __init__(self):Jk
+
 
 def pickle_recording(recording, directory = ''):
     f = recording.filename.split('/')[-1].split('.')[0] + '.pickle'
@@ -33,12 +38,31 @@ def load_pickle_recording(wav_filename = '', directory = '',
     return recording
 
 class Recordings:
-    def __init__(self):
+    def __init__(self, find_start = False):
+        self.find_start = find_start
         self.audio_ids = audio_identifier.Audio_ids()
         self.audios = self.audio_ids.audios
-        self.microphone_names = 'left_respeaker,minidsp,shure,grensvlak'
+        self._set_channel_infos()
+        self.microphone_names = 'left_respeaker,right_respeaker,shure'
+        self.microphone_names += ',minidsp,grensvlak'
         self.microphone_names = self.microphone_names.split(',')
         self._make_recordings()
+
+    def _set_channel_infos(self):
+        t = open('../recording_name_channels.txt').read().split('\n')
+        d = dict([line.split('|') for line in t if line])
+        self.channel_infos = {}
+        for microphone_name, info in d.items():
+            channels, selected, combined, processed = info.split(' ')
+            channels = list(map(int,channels.split(',')))
+            selected = int(selected)
+            if combined == 'None': combined = None
+            else: combined = int(combined)
+            if processed == 'None': processed = None
+            else: processed = int(processed)
+            self.channel_infos[microphone_name] = {'channels':channels,
+                'selected':selected,'combined':combined, 
+                'processed':processed}
 
     def _make_recordings(self):
         self.recordings = []
@@ -46,144 +70,186 @@ class Recordings:
             recording = Recording(microphone_name, self)
             self.recordings.append(recording)
 
-    def _set_audio(self):
-        sample_rate, input_signal = load_audio(self.filename)
-        self.sample_rate = sample_rate
-        self.input_signal = input_signal
-
-
-    def handle_all_tones(self):
-        frequencies = [700,500,300]
-        names = ['audio_id','start','end']
-        for frequency, name in zip(frequencies,names):
-            print('handling',name,frequency)
-            self._handle_tones(frequency,name)
-
-    def make_sections(self):
-        self.sections = make_sections(self)
-
     def save(self):
         pickle_recording(self, self.output_directory)
 
 class Recording:
     def __init__(self, microphone_name, recordings):
         self.microphone_name = microphone_name
-        self.audio_index = 4
         self.recordings = recordings
+        d = self.recordings.channel_infos[self.microphone_name]
         self.audios = self.recordings.audios[self.microphone_name]
+        self.channel_info = d
+        self._make_channel_to_audio_dict()
+        self._find_audio_info()
+        if self.recordings.find_start: self._find_start()
 
     def __repr__(self):
-        return 'recording ' + self.microphone_name
+        m = 'recording ' + self.microphone_name + ' '
+        m += str(self.selected_channel)
+        return m
+
+    def _make_channel_to_audio_dict(self):
+        self.channel_to_audio_dict = {}
+        for name, audio in self.audios.items():
+            if 'track' in name: ch = int(name.split('_')[-1])
+            elif '_ch-' in name: ch = int(name.split('_ch-')[-1])
+            else: continue
+            self.channel_to_audio_dict[ch] = audio
+
+    def _find_audio_info(self):
+        self.selected_channel = self.channel_info['selected']
+        self.selected_audio=self.channel_to_audio_dict[self.selected_channel]
+        '''
+        for name, audio in self.audios.items():
+            if self.selected_channel in name: 
+                self.selected_audio= audio
+                break
+        '''
 
     def _find_start(self):
-        self.audio_info = list(self.audios.values())[self.audio_index]
-        self.wav_filename = self.audio_info.path
-        self.sample_rate= self.audio_info.sample_rate
+        self.wav_filename = self.selected_audio.path
+        self.sample_rate= self.selected_audio.sample_rate
         self.start_audio, sr = sf.read(self.wav_filename, start = 0,
             stop = 300 * self.sample_rate)
-        self._handle_tones(500,self.start_audio,'start_tones_timestamps')
+        self._handle_tones(500,self.start_audio,'first_start_tones')
+        self._find_start_time()
+        self.audio_ids = audio_identifier.Audio_ids(
+            start_time = self.start_time_tone_section)
 
     def _handle_tones(self,frequency, audio, name):
         d = {'sample_rate':self.sample_rate,'input_signal':audio,
             'frequency':frequency, 'return_all': True}
         o, ts, m = get_start_end_timestamps(**d)
-        setattr(self, name, o)
+        tones = []
+        for index,line in enumerate(o):
+            start, end = line
+            tones.append(Tone(index,name,start,end,self,frequency))    
+        setattr(self, name, tones)
         self._magnitudes = m
         self._timestamps = ts
+
+    def _find_start_time(self):
+        audio_ids = self.recordings.audio_ids.audio_ids
+        word_duration = audio_ids[0].audio_id_word_duration
+        time_to_first_start_tone = word_duration + 8
+        start_tone = self.first_start_tones[0].start
+        self.start_time_tone_section = start_tone - time_to_first_start_tone
+        
+    def make_sections(self):
+        self.sections = []
+        for index, audio_id in enumerate(self.audio_ids.audio_ids):
+            if index == 0: start_tones = self.first_start_tones
+            else: start_tones = None
+            section = Section(index, audio_id,self, start_tones)
+            self.sections.append(section)
+
+    def extract_audio_all_sections(self, goal_directory = ''):
+        for section in self.sections:
+            section.extract_section_from_all_channels(goal_directory)
         
 class Section:
-    def __init__(self,audio_id_tones,start_tones,end_tones,
-        filename_recording,section_index):
-        self.audio_id_tones = audio_id_tones
+    def __init__(self, index, audio_id, recording, start_tones = None, 
+        debug = True):
+        self.index = index
+        self.audio_id = audio_id
+        self.section_name = self.audio_id.section_name
+        self.recording = recording
+        self.sample_rate = self.recording.sample_rate
         self.start_tones = start_tones
-        self.end_tones = end_tones
-        self.filename_recording = filename_recording
-        self.section_index = section_index
-        self._set_info()
+        self.debug = debug
+        if not self.start_tones: self._find_start_tones()
+        else: self._start_time_audio = 0
+        self._set_start_end_section()
 
     def __repr__(self):
-        m = 'section| start: '
-        m += str(self.start)
-        m += ' end: '
-        m += str(self.end)
-        m += ' dur: '
-        m += str(round(self.end - self.start,2))
-        m += ' ' + self.filename_recording.split('/')[-1]
-        m += ' ' + str(self.section_index)
+        m = 'Section: ' + str(self.index) + ' '
+        m += self.section_name + ' '
+        m += self.recording.microphone_name + ' '
+        m += str(round(self.start,2)) + ' '
+        m += str(round(self.end,2)) + ' '
+        m += str(round(self.duration,2)) 
         return m
 
-    def _set_audio_id(self):
-        if not self.audio_id_tones: 
-            self.start_audio_id, self.end_audio_id = None, None
-            self.audio_ok = False
-        self.start_audio_id = self.audio_id_tones[0][1] + 2
-        self.end_audio_id = self.audio_id_tones[1][0] - 1
-        self.audio_ok = True
- 
-    def _set_start(self):
-        if not self.start_tones: 
-            self.start= None
-            self.start_ok = False
-        self.start = self.start_tones[1][1] + 1
-    
-    def _set_end(self):
-        if not self.end_tones:
-            self.end = None
-            self.end_ok = False
-        self.end = self.end_tones[0][0] -1
+    def _get_audio(self):
+        start = self.audio_id.timestamps.start_tone_section - 10
+        start_index = int(round(start * self.sample_rate,0))
+        end = self.audio_id.timestamps.start + 10
+        end_index = int(round(end * self.sample_rate,0))
+        self.start_audio, sr = sf.read(
+            self.recording.wav_filename, 
+            start = start_index,
+            stop = end_index)
+        self._start_time_audio = start
+        self._end_time_audio = end
 
-    def _set_info(self):
-        self._set_audio_id()
-        self._set_start()
-        self._set_end()
+    def _find_start_tones(self):
+        frequency = 500
+        self._get_audio()
+        d = {'sample_rate':self.recording.sample_rate,
+            'input_signal':self.start_audio,
+            'frequency':frequency, 'return_all': True}
+        o, ts, m = get_start_end_timestamps(**d)
+        self.start_tones = []
+        for index,line in enumerate(o):
+            start, end = line
+            tone = Tone(index,'start',start,end,self,frequency)    
+            self.start_tones.append(tone)
+        if self.debug:
+            self._magnitudes = m
+            self._timestamps = ts
 
+    def _set_start_end_section(self):
+        self.start = self.start_tones[-1].end + 1 + self._start_time_audio
+        self.end = self.start + self.audio_id.section_audio[0].seconds
+        self.duration = self.end - self.start
 
-def group_segments(segments, delta = 6):
-    found = False
-    output = []
-    for index,segment in enumerate(segments):
-        if index +1 >= len(segments):
-            print('no segements left to group with',segement,index)
-            continue
-        if found == False:
-            next_segment =segments[index + 1]
-            if next_segment[0] - segment[0] < delta:
-                output.append([segment,next_segment])
-                found = True
-        else: found = False
-    print('found pairs',len(output),'n segment',len(segments))
-    return output
+    def _make_wav_filename_base(self, goal_directory= ''):
+        if not os.path.isdir(goal_directory): 
+            print(goal_directory, 'does not exists saving to currect directory')
+            goal_directory = ''
+        m = goal_directory
+        m += self.recording.microphone_name + '_' + str(self.index) + '_'
+        m += self.section_name
+        self.wav_filename_base = m
 
-def find_closest(pair,other_pairs, before = True):
-    delta = 10**9
-    current_index = None
-    for index, other_pair in enumerate(other_pairs):
-        v = pair[0][0] - other_pair[0][0]
-        if v < 0 and before: continue
-        if v > 0 and not before: continue
-        v = abs(v)
-        if v < delta: 
-            current_index = index
-            delta = v
-    return other_pairs[current_index]
+    def extract_section_from_all_channels(self, goal_directory = ''):
+        for channel in self.recording.channel_to_audio_dict.keys():
+            self.extract_audio(channel, goal_directory)
+
+    def extract_audio(self, channel, goal_directory = ''):
+        self._make_wav_filename_base(goal_directory)
+        audio_info = self.recording.channel_to_audio_dict[channel]
+        input_filename = audio_info.path
+        wav_filename = self.wav_filename_base + '_ch-' + str(channel) + '.wav'
+        if os.path.isfile(wav_filename): return
+        cmd = 'sox ' + input_filename + ' ' + wav_filename + ' '
+        cmd += ' trim ' + str(self.start)
+        cmd += ' ' + str(self.duration)
+        print(cmd)
+        os.system(cmd)
         
 
-def make_sections(recording):
-    print('grouping audio id')
-    audio_id = group_segments(recording.audio_id)
-    print('grouping start')
-    start = group_segments(recording.start)
-    print('grouping end')
-    end= group_segments(recording.end)
-    sections = []
-    for index,start_tones in enumerate(start):
-        end_tones = find_closest(start_tones,end, False)
-        audio_id_tones = find_closest(start_tones,audio_id, True)
-        s = Section(audio_id_tones,start_tones,end_tones,recording.filename,
-            index)
-        sections.append(s)
-    return sections
+class Tone:
+    def __init__(self, index, name,start, end, parent, frequency):
+        self.index = index
+        self.name = name
+        self.start = start
+        self.end = end
+        self.duration = self.end - self.start
+        self.parent =parent 
+        self.frequency = frequency
+        self.sample_rate = self.parent.sample_rate
+        self.start_sample_index = int(self.start * self.sample_rate)
+        self.end_sample_index = int(self.end * self.sample_rate)
 
+    def __repr__(self):
+        m = self.name + ' ' + str(self.index) + ' '
+        m += str(self.start) + ' - ' + str(self.end) + ' | '
+        m += str(self.duration)
+        return m
+    
+        
 def load_audio(filename):
     try:
         sample_rate, audio_data = wav.read(filename)
