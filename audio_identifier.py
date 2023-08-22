@@ -63,11 +63,12 @@ def open_mix_file(filename):
     return o
 
 class Audio_ids:
-    def __init__(self, audios = None): 
+    def __init__(self, audios = None, start_time = 0): 
         if not audios: 
             import audio
             audios = audio.make_audios()
         self.audios = audios
+        self.start_time = start_time
         self._audio_id = open_mix_file(audio_id_filename)
         self._audio_id_original = open_mix_file(audio_id_original_filename)
         self._set_info()
@@ -113,6 +114,7 @@ class Audio_id:
         m +=  ' si ' + str(self.section_set_index)
         m += ' ' + self.section_set_name
         m += ' start: ' + str(round(self.timestamps.start,2))
+        m += ' end: ' + str(round(self.timestamps.end,2))
         m += ' dur: ' + str(round(self.timestamps.duration,2))
         return m
 
@@ -136,18 +138,28 @@ class Audio_id:
         else: self.n_speakers = len(self.section_name.split('-'))
 
     def _get_section_audio(self):
-        if self.original: name = 'original'
-        else: name = 'section'
+        if self.original: 
+            name = 'original'
+            identifier = 'ch-' + str(self.n_speakers)
+        else: 
+            name = 'section'
+            identifier = 'nch-' + str(self.n_speakers)
         self.section_audio = []
         for k,audio in self.audio_ids.audios[name].items():
-            if self.section_name in k: self.section_audio.append(audio)
+            if self.section_name in k and identifier in k: 
+                self.section_audio.append(audio)
 
     def _get_tone_audio(self):
-        if self.original: name = 'original_tone'
-        else: name = 'tone'
+        if self.original: 
+            name = 'original_tone'
+            identifier = 'ch-' + str(self.n_speakers)
+        else: 
+            name = 'tone'
+            identifier = 'nch-' + str(self.n_speakers)
         self.tone_audio = []
         for k,audio in self.audio_ids.audios[name].items():
-            if self.section_name in k: self.tone_audio.append(audio)
+            if self.section_name in k and identifier in k: 
+                self.tone_audio.append(audio)
 
     def _get_combined_audio(self):
         if self.original: name = 'original_combined'
@@ -192,12 +204,12 @@ class Timestamps:
 
     def _estimate_tone_section(self):
         if self.recording_index == 0: 
-            self.start_tone_section = 0
+            self.start_tone_section = self.audio_id.audio_ids.start_time
         else: 
             s =  self.previous_audio_id.timestamps.end_tone_section
             self.start_tone_section = s
         self.end_tone_section = self.start_tone_section 
-        self.end_tone_section = self.audio_id.tone_audio[0].seconds
+        self.end_tone_section += self.audio_id.tone_audio[0].seconds
         self.duration_tone = self.end_tone_section - self.start_tone_section
 
     def _estimate_section(self):
