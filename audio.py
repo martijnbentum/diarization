@@ -22,6 +22,7 @@ grensvlak_directory = base_rec + 'grensvlak/'
 minidsp_directory = base_rec + 'minidsp/'
 shure_directory = base_rec + 'shure_mxa910/'
 left_respeaker_directory = base_rec + 'politie_respeaker/'
+right_respeaker_directory = base_rec + 'spraakdetector_nuc/'
 
 # audio_info = dict([line.split('\t') for line in open('../audio_info.txt').read().split('\n') if line])
 
@@ -107,19 +108,23 @@ def _make_audio_infos():
     _make_audio_info('combined_audio_info.txt', combined_directory)
     _make_audio_info('tone_audio_info.txt', tone_directory)
     _make_audio_info('mono_audio_info.txt', mono_directory)
-    _make_audio_info('grensvlak_audio_info.txt', grensvlak_directory)
     _make_audio_info('minidsp_audio_info.txt', minidsp_directory)
     _make_audio_info('shure_audio_info.txt', shure_directory)
-    _make_audio_info('left_respeaker_audio_info.txt', left_respeaker_directory)
+    _make_audio_info('left_respeaker_audio_info.txt', 
+        left_respeaker_directory)
+    _make_audio_info('right_respeaker_audio_info.txt', 
+        right_respeaker_directory)
     _make_audio_info('original_audio_info.txt', original_directory)
     _make_audio_info('original_tone_audio_info.txt', original_tone_directory)
     _make_audio_info('original_combined_audio_info.txt', 
         original_combined_directory)
     _make_audio_info('audio_id_audio_info.txt', audio_id_directory)
     _make_audio_info('random_word_audio_info.txt', random_word_directory)
+    _make_audio_info('grensvlak_audio_info.txt', grensvlak_directory,'.w64')
+        
 
-def _make_audio_info(output_name, audio_dir= section_directory):
-    fn = glob.glob(audio_dir + '*.wav')
+def _make_audio_info(output_name, audio_dir= section_directory, ext = '.wav'):
+    fn = glob.glob(audio_dir + '*' + ext)
     output = []
     for f in fn:
         file_id = f.split('/')[-1].split('.')[0]
