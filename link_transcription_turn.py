@@ -1,7 +1,20 @@
+'''
+Each section mix of the played audio has an orthographic transcription
+to link each line in the transcription to a turn with more data
+such as loudness turn wav_filename etc the Transcription object is used
+The transcription object contains the corresponding turn
+The transcription is part of the transcriptions object
+You can create a dictionary with transcription filename as key
+and a transcriptions object as value.
+'''
+
 import glob
 import handle_phrases
 
 def make_filename_to_transcriptions_dict(tables = None, directory = None):
+    '''create a dict with all transcriptions objects, 
+    indexed by the filename of the transcription file
+    '''
     if not tables: 
         Tables = handle_phrases.Tables()
         tables = Tables.tables
@@ -12,6 +25,9 @@ def make_filename_to_transcriptions_dict(tables = None, directory = None):
     return d
 
 def make_filename_tables_dict(tables = None, directory = None):
+    ''' link each transcription filename to the corresponding table objects.
+    not directly used to create the transcriptions objects
+    '''
     if not tables: 
         Tables = handle_phrases.Tables()
         tables = Tables.tables
@@ -22,14 +38,19 @@ def make_filename_tables_dict(tables = None, directory = None):
     return d
 
 def get_mix_filenames(directory = None):
+    '''get all filenames of all transcription text files.'''
     if not directory: directory = '../PLAY_TRANSCRIPTION_TABLES/'
     return glob.glob(directory + '*.txt')
 
 def filename_to_tables(filename, tables):
+    '''find the table object(s) that correspond to a given transcription file.
+    '''
     if 'nch' in filename: return _handle_mix_filename(filename, tables)
     if 'DVA' in filename: return _handle_orignal_filename(filename, tables)
 
 def _handle_mix_filename(filename,tables):
+    '''helper function for filename to table for the mix transcriptions.
+    '''
     speakers = filename.split('spk-')[-1].split('.')[0].split('-')
     output = []
     for speaker in speakers:
@@ -39,12 +60,19 @@ def _handle_mix_filename(filename,tables):
     return output
 
 def _handle_orignal_filename(filename, tables):
+    '''helper function for filename to table for the original transcriptions.
+    '''
     identifier = filename.split('/')[-1].split('.')[0]
     for table in tables:
         if identifier == table.identifier: return [table]
 
 
 def open_transcription(filename):
+    '''Open transcription text file and create Transcription object for each
+    line.
+    The transcription object can be used to find the corresponding turn
+    This can be achieved by creating a Transcriptions object 
+    '''
     with open(filename) as fin:
         t = [line.split('\t') for line in fin.read().split('\n') if line]
     output = []
@@ -55,6 +83,9 @@ def open_transcription(filename):
     return output
 
 class Transcriptions:
+    '''container object to hold all Transcription objects and match 
+    corresponding turns.
+    '''
     def __init__(self,filename, tables):
         self.filename = filename
         self.tables = filename_to_tables(filename, tables)
@@ -68,6 +99,10 @@ class Transcriptions:
         return m
 
     def _find_turns(self):
+        '''match each turn to transcription object
+        not all turns will necessarily match (because the were not always used)
+        all transcription objects should always match with a turn
+        '''
         self.all_turns = []
         self.excluded_turns = []
         for table in self.tables:
@@ -79,6 +114,9 @@ class Transcriptions:
         
 
 class Transcription:
+    '''object to represent a line in a transcription text file
+    can be used to match the line with a turn object to link data
+    '''
     def __init__(self, line, index):
         self.line = line
         self.index = index
