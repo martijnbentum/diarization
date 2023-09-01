@@ -1,10 +1,8 @@
 import os
 from wonderwords import RandomWord
+import locations
 r = RandomWord()
 
-audio_id_filename ='../mix_id_to_audio_id_mapping.txt'
-audio_id_original_filename='../audio_id_mapping_orginal_ifadv.txt'
-section_directory='/Volumes/INTENSO/diarization_10-08-23/third_session_play/'
 
 
 def random_word():
@@ -35,7 +33,8 @@ def record_random_word(say_word = True):
     record(word, output_filename)
     if say_word: say(word)
 
-def record_random_words(n, output_dir = '../RANDOM_WORDS/', say_words = False):
+def record_random_words(n, output_dir = None, say_words = False):
+    if output_dir = None: locations.random_word_directory
     words = '_'.join(random_words(n))
     output_filename = output_dir + words
     record(words, output_filename)
@@ -43,7 +42,8 @@ def record_random_words(n, output_dir = '../RANDOM_WORDS/', say_words = False):
     return words, output_filename
 
 def record(text, output_filename):
-    f = output_filename.replace('../','')
+    # f = output_filename.replace('../','')
+    f = output_filename.split('/')[-1]
     if '.' in f:
         raise ValueError(output_filename,'should not contain extension')
     cmd = 'say -v Moira ' + text + ' -o ' + output_filename + '.aiff'
