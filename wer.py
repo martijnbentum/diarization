@@ -7,7 +7,8 @@ base_w2v_directory = '/Users/u050158/IFADV/wav2vec2_transcriptions/'
 fn_base_w2v_transcriptions = glob.glob(base_w2v_directory + '*.txt')
 
 
-def table_filename_to_w2v_filename(table_filename, fn_w2v=fn_base_w2v_transcriptions):
+def table_filename_to_w2v_filename(table_filename, 
+    fn_w2v=fn_base_w2v_transcriptions):
     table_id = ifadv_clean.filename_to_identifier(table_filename)
     for f in fn_w2v:
         w2v_id = ifadv_clean.filename_to_identifier(f)
