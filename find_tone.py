@@ -1,14 +1,16 @@
+import audio_identifier
 import glob
+import locations
 import numpy as np
+import os
+import pickle
 import scipy.io.wavfile as wav
 import soundfile as sf
 import scipy.signal as signal
-import pickle
-import audio_identifier
-import os
 
 class Channel_info():
-    def __init__(self):Jk
+    def __init__(self):
+        pass
 
 
 def pickle_recording(recording, directory = ''):
@@ -49,7 +51,8 @@ class Recordings:
         self._make_recordings()
 
     def _set_channel_infos(self):
-        t = open('../recording_name_channels.txt').read().split('\n')
+        filename = locations.recording_name_channels_filename
+        t = open(filename).read().split('\n')
         d = dict([line.split('|') for line in t if line])
         self.channel_infos = {}
         for microphone_name, info in d.items():
