@@ -40,7 +40,9 @@ def load_pickle_recording(wav_filename = '', directory = '',
     return recording
 
 class Recordings:
-    def __init__(self, find_start = False):
+    def __init__(self, find_start = False, sections_output_directory = None):
+        d = locations.sections_output_directory
+        self.sections_output_directory = d
         self.find_start = find_start
         self.audio_ids = audio_identifier.Audio_ids()
         self.audios = self.audio_ids.audios
@@ -49,6 +51,7 @@ class Recordings:
         self.microphone_names += ',minidsp,grensvlak'
         self.microphone_names = self.microphone_names.split(',')
         self._make_recordings()
+        self.sections_made = False
 
     def _set_channel_infos(self):
         filename = locations.recording_name_channels_filename
@@ -73,8 +76,22 @@ class Recordings:
             recording = Recording(microphone_name, self)
             self.recordings.append(recording)
 
-    def save(self):
-        pickle_recording(self, self.output_directory)
+    def make_all_sections(self):
+        for recording in self.recordings:
+            print(recording.microphone_name,'making sections')
+            recording.make_sections()
+        self.sections_made = True
+
+    def extract_audio_sections_for_all_recordings(self):
+        directory = self.sections_output_directory
+        for recording in self.recordings:
+            print(recording.microphone_name)
+            if not self.sections_made:
+                print('making sections')
+                recording.make_sections()
+            print('extracting audio')
+            recording.extract_audio_all_sections(directory)
+
 
 class Recording:
     def __init__(self, microphone_name, recordings):
@@ -141,11 +158,14 @@ class Recording:
         
     def make_sections(self):
         self.sections = []
+        self.errors = []
         for index, audio_id in enumerate(self.audio_ids.audio_ids):
             if index == 0: start_tones = self.first_start_tones
             else: start_tones = None
             section = Section(index, audio_id,self, start_tones)
-            self.sections.append(section)
+            if section.ok:
+                self.sections.append(section)
+            else: self.errors.append([index,audio_id])
 
     def extract_audio_all_sections(self, goal_directory = ''):
         for section in self.sections:
@@ -161,6 +181,7 @@ class Section:
         self.sample_rate = self.recording.sample_rate
         self.start_tones = start_tones
         self.debug = debug
+        self.ok = True
         if not self.start_tones: self._find_start_tones()
         else: self._start_time_audio = 0
         self._set_start_end_section()
@@ -175,9 +196,9 @@ class Section:
         return m
 
     def _get_audio(self):
-        start = self.audio_id.timestamps.start_tone_section - 10
+        start = self.audio_id.timestamps.start_tone_section - 20
         start_index = int(round(start * self.sample_rate,0))
-        end = self.audio_id.timestamps.start + 10
+        end = self.audio_id.timestamps.start + 20
         end_index = int(round(end * self.sample_rate,0))
         self.start_audio, sr = sf.read(
             self.recording.wav_filename, 
@@ -203,6 +224,10 @@ class Section:
             self._timestamps = ts
 
     def _set_start_end_section(self):
+        print(self.section_name,self.index,self.start_tones)
+        if not self.start_tones: 
+            self.ok = False
+            return
         self.start = self.start_tones[-1].end + 1 + self._start_time_audio
         self.end = self.start + self.audio_id.section_audio[0].seconds
         self.duration = self.end - self.start
