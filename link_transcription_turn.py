@@ -10,6 +10,7 @@ and a transcriptions object as value.
 
 import glob
 import handle_phrases
+import locations
 
 def make_filename_to_transcriptions_dict(tables = None, directory = None):
     '''create a dict with all transcriptions objects, 
@@ -39,7 +40,8 @@ def make_filename_tables_dict(tables = None, directory = None):
 
 def get_mix_filenames(directory = None):
     '''get all filenames of all transcription text files.'''
-    if not directory: directory = '../PLAY_TRANSCRIPTION_TABLES/'
+    if not directory: 
+        directory = locations.play_transcription_tables_directory
     return glob.glob(directory + '*.txt')
 
 def filename_to_tables(filename, tables):
