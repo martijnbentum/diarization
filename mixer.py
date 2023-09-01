@@ -6,37 +6,44 @@ import random
 
 random.seed(9)
 
+'''
 home_dir = os.path.expanduser('~') + '/'
 # output_dir = home_dir + 'mixed_audio/'
 output_dir = '/Volumes/Expansion/third_recording_session/'
 output_tone_dir = '/Volumes/Expansion/third_recording_session_tone/'
+'''
 
-def add_audio_id_start_and_end_tone(audio_id_filename, mix_filename, output_filename):
+def add_audio_id_start_and_end_tone(audio_id_filename, mix_filename, 
+    output_filename):
     cmd = 'sox ' + audio_id_filename + ' '
-    cmd +=  '../TONE/start_tone.wav '
+    cmd +=  locations.support_tones_directory + 'start_tone.wav '
     cmd += mix_filename + ' '
-    cmd += '../TONE/end_tone.wav '
+    cmd += locations.support_tones_directory + 'end_tone.wav '
     cmd += output_filename 
     os.system(cmd)
     return cmd
 
 def make_audio_ids():
-    fn = glob.glob('../RANDOM_WORDS/*.wav')
+    fn = glob.glob(locations.random_word_directory + '*.wav')
     for f in fn:
-        make_identifier_audio_file(f, f.replace('../RANDOM_WORDS/','../AUDIO_ID/'))
+        output_f = f.replace(locations.random_word_directory,
+            locations.audio_id_directory)
+        make_identifier_audio_file(f, output_f)
+            
 
 def make_identifier_audio_file(input_filename, output_filename):
+    tone_directory = locations.support_tones_directory
     cmd = 'sox --combine sequence'
-    cmd += ' "|sox ../TONE/tone_700.wav -p pad 1 1"'
+    cmd += ' "|sox ' + tone_directory + 'tone_700.wav -p pad 1 1"'
     cmd += ' "|sox ' + input_filename + ' -p pad 1 1"'
-    cmd += ' "|sox ../TONE/tone_700.wav -p pad 0 1"'
+    cmd += ' "|sox ' + tone_directory + 'tone_700.wav -p pad 0 1"'
     cmd += ' -b 16 ' + output_filename
-    print(cmd)
     os.system(cmd)
     return cmd
 
 def make_tone(frequency = 500):
-    filename = '../TONE/tone_' + str(frequency) + '.wav'
+    tone_directory = locations.support_tones_directory
+    filename = tone_directory + 'tone_' + str(frequency) + '.wav'
     cmd = 'sox -b 16 -n ' + filename +' synth 1 sine ' + str(frequency)
     cmd += ' vol 0.3'
     os.system(cmd)
@@ -44,16 +51,25 @@ def make_tone(frequency = 500):
 
 def make_start_tone():
     combine_tones([500,500])
-    os.system('cp ../TONE/sequence_500-500.wav ../TONE/start_tone.wav')
+    tone_directory = locations.support_tones_directory
+    cmd = 'cp ' + tone_directory + 'sequence_500-500.wav '
+    cmd += tone_directory + 'start_tone.wav')
+    os.system(cmd)
+    return cmd
 
 def make_end_tone():
     combine_tones([300,300])
-    os.system('cp ../TONE/sequence_300-300.wav ../TONE/end_tone.wav')
+    tone_directory = locations.support_tones_directory
+    cmd = 'cp ' + tone_directory + 'sequence_300-300.wav '
+    cmd += tone_directory + 'end_tone.wav')
+    os.system(cmd)
+    return cmd
 
 def combine_tones(frequencies = [500,300]):
     cmd = 'sox --combine sequence'
+    tone_directory = locations.support_tones_directory
     for i,frequency in enumerate(frequencies):
-        f = '../TONE/tone_' + str(frequency) + '.wav'
+        f = tone_directory+'tone_' + str(frequency) + '.wav'
         if not f: make_tone(frequency)
         if i == 0: 
             cmd +=' "| sox ' + f + ' -p pad 1 2"'
@@ -61,7 +77,7 @@ def combine_tones(frequencies = [500,300]):
             cmd +=' "| sox ' + f + ' -p pad 0 1"'
         else:
             cmd +=' "| sox ' + f + ' -p pad 0 2"'
-    filename = '../TONE/sequence_' + '-'.join(map(str,frequencies)) + '.wav'
+    filename = 'sequence_' + '-'.join(map(str,frequencies)) + '.wav'
     cmd += ' -b 16 ' + filename 
     os.system(cmd)
     return cmd
@@ -158,7 +174,7 @@ class Tracks:
         n += 'nch-' + str(self.ntracks)
         n += '_spk-' + '-'.join(list(self.speaker_to_turns.keys()))
         n += '.wav'
-        self.output_filename = output_dir + n
+        self.output_filename = locations.section_directory + n
 
 
     def channel_to_track(self, channel):
