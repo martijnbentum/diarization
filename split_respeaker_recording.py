@@ -1,5 +1,10 @@
 import glob
 import os
+import locations
+
+def split_all_respeakers_audio():
+    split_respeaker_audio(locations.respeaker_left_filename)
+    split_respeaker_audio(locations.respeaker_right_filename)
 
 def split_respeaker_audio(filename, ext = '.wav'):
     output_file = filename.replace('.w64','')
@@ -10,7 +15,7 @@ def split_respeaker_audio(filename, ext = '.wav'):
 
 # sox respeaker_aug_ede_politie_lang.w64 respeaker_ch-1.wav remix 1
 def split_grensvlak_audio():
-    filename = '/Volumes/INTENSO/diarization_10-08-23/grensvlak/T71_ISO.wav'
+    filename = locations.grensvlak_filename
     output_file = filename.replace('.wav','')
     print(os.path.isfile(filename),filename)
     for ch in range(1,4):
