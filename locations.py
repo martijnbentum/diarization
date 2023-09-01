@@ -28,6 +28,8 @@ speaker_data_filename = base_support + 'speaker_data.txt'
 #audio id to section mappers
 audio_id_filename =base_support + 'mix_id_to_audio_id_mapping.txt'
 audio_id_original_filename=base_support +'audio_id_mapping_orginal_ifadv.txt'
+phrases_db_filename = base_support + 'phrases_db_list'
+turn_db_filename = base_support + 'turn_db_list'
 
 #recorded audio
 base_rec = base
@@ -49,5 +51,8 @@ respeaker_right_filename += 'respeaker_spraakdetector_30-8-23.wav'
 ifadv_dir = base_play + 'IFADV/'
 ifadv_table_directory =ifadv_dir + 'TABLE/'
 ifadv_wav_directory = ifadv_dir + 'WAV/'
-ifadv_txt_directory = ifadv_dir +'/TXT/'
+ifadv_txt_directory = ifadv_dir +'TXT/'
+ifadv_phrases_directory = ifadv_dir + 'PHRASES/'
+ifadv_turns_directory = ifadv_dir + 'TURNS/'
+
 
