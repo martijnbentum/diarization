@@ -5,14 +5,15 @@ Phrase object points to extracted phrase wav file and links to metadata
 '''
 
 import ifadv_clean
+import locations
 import numpy as np
 import os
-import subprocess
 import play_audio
 import speakers
+import subprocess
 
-phrase_dir = ifadv_clean.ifadv_dir + 'PHRASES/'
-turn_dir = ifadv_clean.ifadv_dir + 'TURNS/'
+phrase_dir = locations.ifadv_phrases_directory
+turn_dir = locations.ifadv_turns_directory
 
 
 def make_all_tables(sort_on_intensity = True):
@@ -323,8 +324,10 @@ class Phrase:
 
     def check_overlap(self,other):
         if type(self) != type(other): raise ValueError(other,'is not a phrase')
-        if self.table != other.table: raise ValueError('not the same ifadv recording')
-        return overlap(self.start_time, self.end_time, other.start_time, other.end_time)
+        if self.table != other.table: 
+            raise ValueError('not the same ifadv recording')
+        return overlap(self.start_time, self.end_time, 
+            other.start_time, other.end_time)
 
     @property
     def times(self):
@@ -340,7 +343,7 @@ class Phrase:
 def table_to_wav_filename(table_filename):
     '''maps table filename to wav filename.'''
     f = table_filename.split('/')[-1].split('_')[0]
-    return ifadv_clean.wav_directory + f + '.wav'
+    return locations.ifadv_wav_directory + f + '.wav'
 
 def overlap(s1,e1,s2,e2):
     '''check whether start and end point of two phrases overlap.'''
@@ -388,7 +391,7 @@ def make_all_phrases_db_list(tables = None):
             try: db = phrase_to_db(phrase)
             except: continue
             output.append(phrase.wav_filename + '\t' + db)
-    with open('../phrases_db_list','w') as fout:
+    with open(locations.phrases_db_filename,'w') as fout:
         fout.write('\n'.join(output))
     return output
             
@@ -402,15 +405,15 @@ def make_all_turn_db_list(tables = None):
             try: db = turn_to_db(turn)
             except: continue
             output.append(turn.wav_filename + '\t' + db)
-    with open('../turn_db_list','w') as fout:
+    with open(locations.turn_db_filename,'w') as fout:
         fout.write('\n'.join(output))
     return output
 
 def make_turn_to_db_dict():
-    return read_table('../turn_db_list')
+    return read_table(locations.turn_db_filename)
 
 def make_phrase_to_db_dict():
-    return read_table('../phrases_db_list')
+    return read_table(locations.phrases_db_filename)
 
 def read_table(filename):
     with open(filename) as fin:
