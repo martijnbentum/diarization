@@ -115,6 +115,6 @@ def _make_audio_info(output_name, audio_dir= locations.section_directory,
         o = o.replace('\t',',').replace("'",'')
         o = re.sub('\s+','',o)
         output.append(file_id + '\t' + o)
-    with open('../audio_info/'+output_name,'w') as fout:
+    with open(locations.audio_info+output_name,'w') as fout:
         fout.write('\n'.join(output))
     return output
