@@ -39,6 +39,8 @@ shure_directory = base_rec + 'shure_mxa910/'
 left_respeaker_directory = base_rec + 'respeaker_links/'
 right_respeaker_directory = base_rec + 'respeaker_rechts/'
 
+#recorded audio split into sections
+sections_output_directory = base + 'sections/'
 
 #split audio files
 grensvlak_filename = base_rec + 'grensvlak/T72_ISO.wav'
