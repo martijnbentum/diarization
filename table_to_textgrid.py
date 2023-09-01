@@ -1,19 +1,22 @@
 import glob
+import locations
 import praatio
 from praatio import textgrid
 from praatio.utilities.constants import Interval
 from praatio.data_classes import interval_tier
 
 def all_text_files_to_textgrid():
-    fn = glob.glob('../PLAY_TRANSCRIPTION_TABLES/*.txt')
+    directory = locations.play_transcription_tables_directory
+    fn = glob.glob(directory + '*.txt')
     textgrids = []
     for f in fn:
         filename_to_textgrid(f)
     return textgrids
 
 def filename_to_textgrid(filename):
-    output_filename = filename.split('/')[-1].replace('.txt','.textgrid')
-    output_filename = '../PLAY_TEXTGRIDS/' + output_filename
+    temp = filename.split('/')[-1].replace('.txt','.textgrid')
+    output_filename = locations.play_textgrids_directory
+    output_filename += temp
     text = load_text(filename)
     textgrid = text_to_textgrid(text)
     textgrid.save(output_filename, 'short_textgrid', True)
