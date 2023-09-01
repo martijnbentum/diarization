@@ -1,16 +1,19 @@
 import glob
-import handle_phrases 
-import mixer
-import random
 import group_mixes
+import handle_phrases 
+import locations
+import mixer
 import os
+import random
 
 random.seed(9)
 
+'''
 mixed_audio = '/Volumes/Expansion/third_recording_session/'
 tone_audio = '/Users/martijn.bentum/tone_mixed_audio/'
 mixed_tone_audio = '/Volumes/Expansion/third_recording_session_tone/'
 mixed_combined_audio = '/Volumes/Expansion/third_recording_session_combined/'
+'''
 
 def make_first_session_mixes(tables = None):
     if not tables: tables = handle_phrases.Tables()
@@ -42,12 +45,17 @@ def _make(turns, overlap):
     tracks = mixer.Tracks(turns, overlap = overlap)
     tracks.make()
 
-def add_start_tone_to_audio_files(input_dir=mixed_audio,output_dir=tone_audio):
+def add_start_tone_to_audio_files(input_dir=None,output_dir=None):
     '''helper function to prepend a start tone to the mixes.
     used for the first recording session
     later session a start and end tone is used
-    also and audio identifier file was prepended to identify the concatenated recordings
+    also and audio identifier file was prepended to identify the 
+    concatenated recordings
     '''
+    if not input_dir:
+        input_dir = locations.section_directory
+    if not output_dir:
+        output_dir = locations.tone_directory
     fn = glob.glob(input_dir + '*.wav')
     for f in fn:
         output_filename = output_dir + 'tone_' + f.split('/')[-1]
@@ -124,7 +132,8 @@ def make_mixes_second_session(tables = None):
 
 def make_group_id_to_audio_id_mapping(save = False, d = None, 
     output_filename = '', audio_ids = []):
-    '''create a file that maps the group id (the set of speakers) to an audio id file.
+    '''create a file that maps the group id (the set of speakers) 
+    to an audio id file.
     created files with 2 4 & 6 speakers the group id list the speakers in order
     created audio files with three random words these recordings are prepended to
     a speaker file to easily identify which recording is played.
@@ -137,19 +146,25 @@ def make_group_id_to_audio_id_mapping(save = False, d = None,
         o.append([group_id, audio_id])
     if save:
         if not output_filename:
-            t = mixed_combined_audio + 'mix_id_to_audio_id_mapping.txt'
+            directory = locations.combined_directory
+            t = directory + 'mix_id_to_audio_id_mapping.txt'
             output_filename = t
         print('saving to ',output_filename)
         with open(output_filename, 'w') as fout:
             fout.write('\n'.join(['\t'.join(line) for line in o]))
     return o
         
-def add_tones_and_audio_ids_to_mixes(input_dir = mixed_audio, 
-    output_dir= mixed_tone_audio, to_audio_id_dict = None, d = None):
-    '''prepend an audio identifier and start tone and append an end tone to all mixes.
+def add_tones_and_audio_ids_to_mixes(input_dir = None, 
+    output_dir= None, to_audio_id_dict = None, d = None):
+    '''prepend an audio identifier and start tone and append an end tone to all 
+    mixes.
     the audio identifier is a recording of three random words that are specific to
     a given mix to easily find the specific mix in the recording.
     '''
+    if not input_dir:
+        input_dir = section_directory
+    if not output_dir:
+        output_dir = tone_directory
     if not d: d = group_mixes.group_all_files()
     if not to_audio_id_dict:
         to_audio_id_dict= dict(make_group_id_to_audio_id_mapping(False))
@@ -161,10 +176,14 @@ def add_tones_and_audio_ids_to_mixes(input_dir = mixed_audio,
             mixer.add_audio_id_start_and_end_tone(audio_id_filename,mix_filename,
                 output_filename)
 
-def combine_n_speaker_files(n_speakers, d = None, org_dir= mixed_audio,
-    tone_dir= mixed_tone_audio, second_split_char = '_'):
+def combine_n_speaker_files(n_speakers, d = None, org_dir= None,
+    tone_dir= None, second_split_char = '_'):
     '''returns a dictionary with all audio files in order for each channel
     '''
+    if not org_dir:
+        org_dir = locations.section_directory
+    if not tone_dir:
+        tone_dir = locations.tone_directory
     if not d:d = group_mixes.group_n_speakers(n_speakers)
     channels = {i:[] for i in range(1,n_speakers+1)}
     for mix_filenames in d.values():
@@ -176,7 +195,9 @@ def combine_n_speaker_files(n_speakers, d = None, org_dir= mixed_audio,
     return channels
 
 def make_combined_file(filenames, channel, n_speakers, 
-    output_dir = mixed_combined_audio):
+    output_dir = None):
+    if not output_dir: 
+        output_dir = locations.combined_directory
     output_filename = output_dir+ 'nch-' + str(n_speakers) 
     output_filename += '_ch-' + str(channel) + '.wav'
     print('saving to ',output_filename)
