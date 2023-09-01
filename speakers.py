@@ -4,9 +4,10 @@ module to handle ifadv meta data regarding speakers and recordings.
 
 import glob
 import ifadv_clean
+import locations
 import string
 
-fn_wav = glob.glob(ifadv_clean.wav_directory + '*.wav')
+fn_wav = glob.glob(locations.ifadv_wav_directory+ '*.wav')
 
 def make_recording(wav_filename):
     '''create a recording object based on the wav filename.'''
@@ -17,11 +18,11 @@ def make_recording(wav_filename):
     raise ValueError(wav_filename, 'could not find recording metadata')
     
 
-def open_recording_file(f = '../recording_data.txt'):
+def open_recording_file(f = locations.recording_data_filename):
     '''open file with metadata for all recordings.'''
     return open_file(f)
 
-def open_speaker_file(f = '../speaker_data.txt'):
+def open_speaker_file(f = locations.speaker_data_filename):
     '''open file with metadata for all speakers.'''
     return open_file(f)
 
@@ -60,7 +61,9 @@ class Speaker:
 
 
 class Recording:
-    '''show metadata for an IFADV recording and links to speakers on channel 1 and 2.'''
+    '''show metadata for an IFADV recording and links to speakers on 
+    channel 1 and 2.
+    '''
     def __init__(self, line):
         self.line = line
         self._set_info()
@@ -109,7 +112,9 @@ def _wav_filename_to_number(wav_filename):
         
 
 def _get_wav_filename(record_id_number):
-    '''get the wav filename for an ifadv recording based on the record id number.'''
+    '''get the wav filename for an ifadv recording based on the record 
+    id number.
+    '''
     id_number = str(record_id_number)
     for filename in fn_wav:
         number = _wav_filename_to_number(filename)
