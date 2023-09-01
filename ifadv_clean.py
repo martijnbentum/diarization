@@ -1,17 +1,11 @@
 import glob  
+import locations
+import os
 import re
 import string
-import os
 
-
-home_dir = os.path.expanduser('~') + '/'
-ifadv_dir = home_dir + 'IFADV/'
-
-table_directory =ifadv_dir + 'TABLE/'
-wav_directory = ifadv_dir + 'WAV/'
-table_fn = glob.glob(table_directory + '*.Table')
-wav_fn = glob.glob(wav_directory + '*.wav')
-txt_directory = ifadv_dir +'/TXT/'
+table_fn = glob.glob(locations.ifadv_table_directory+ '*.Table')
+wav_fn = glob.glob(locations.ifadv_wav_directory + '*.wav')
 
 def _check_first_line(table):
     header = 'tmin,tier,text,tmax'.split(',')
@@ -51,7 +45,8 @@ def write_text_files():
     for f in table_fn:
         identifier = filename_to_identifier(f)
         text = open_table(f, return_text = True)
-        with open( txt_directory + identifier + '.txt', 'w') as fout:
+        directory = locations.ifadv_txt_directory
+        with open( directory + identifier + '.txt', 'w') as fout:
             fout.write('\n'.join(text))
 
 def filename_to_identifier(filename):
