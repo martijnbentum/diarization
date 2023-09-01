@@ -34,7 +34,7 @@ def record_random_word(say_word = True):
     if say_word: say(word)
 
 def record_random_words(n, output_dir = None, say_words = False):
-    if output_dir = None: locations.random_word_directory
+    if output_dir == None: locations.random_word_directory
     words = '_'.join(random_words(n))
     output_filename = output_dir + words
     record(words, output_filename)
@@ -69,8 +69,9 @@ class Audio_ids:
             audios = audio.make_audios()
         self.audios = audios
         self.start_time = start_time
-        self._audio_id = open_mix_file(audio_id_filename)
-        self._audio_id_original = open_mix_file(audio_id_original_filename)
+        self._audio_id = open_mix_file(locations.audio_id_filename)
+        self._audio_id_original = open_mix_file(
+            locations.audio_id_original_filename)
         self._set_info()
         self.start_tone_duration = 6
         self.end_tone_duration = 6
