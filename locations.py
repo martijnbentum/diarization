@@ -1,5 +1,14 @@
+import platform
+
+
+if 'Linux' in platform.platform():
+    path = '/media/mb/BACKUP_4TB/'
+elif 'macOS' in platform.platform():
+    path = 'Volumes/BACKUP_4TB/'
+else: raise ValueError('windows')
+    
 # base ='/Volumes/INTENSO/diarization_10-08-23/third_session_play/'
-base = '/Volumes/BACKUP_4TB/diarization_30-08-23/'
+base = path + 'diarization_30-08-23/'
 
 base_play = base + 'third_session_play/'
 base_support = base + 'SUPPORT/'
