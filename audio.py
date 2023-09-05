@@ -64,6 +64,9 @@ class Audio:
             self.seconds = self.samples / self.sample_rate
             self.comp = self.path.split('/')[-3]
             self.region= self.path.split('/')[-2]
+        if locations.path == locations.mac_path: return
+        f = self.path
+        self.path = f.replace(locations.mac_path, locations.path)
 
 
 def make_time(seconds):
