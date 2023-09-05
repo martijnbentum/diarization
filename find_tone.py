@@ -1,9 +1,9 @@
 import audio_identifier
 import glob
+import json
 import locations
 import numpy as np
 import os
-import pickle
 import scipy.io.wavfile as wav
 import soundfile as sf
 import scipy.signal as signal
@@ -78,6 +78,9 @@ class Recording:
     def __repr__(self):
         m = 'recording ' + self.microphone_name + ' '
         m += str(self.selected_channel)
+        m += str(self.n_sections) + ' '
+        m += str(self.n_warnings) + ' '
+        m += str(self.n_errors) 
         return m
 
     def _make_channel_to_audio_dict(self):
@@ -140,14 +143,18 @@ class Recording:
             if section.ok:
                 self.sections.append(section)
             else: self.errors.append(section)
+        self.n_errors = len(self.errors)
+        self.n_warnings = len(self.warnings)
+        self.n_sections = len(self.sections)
 
     def extract_audio_all_sections(self, goal_directory = ''):
         for section in self.sections:
             section.extract_section_from_all_channels(goal_directory)
+            section_to_json(section)
         
 class Section:
     def __init__(self, index, audio_id, recording, start_tones = None, 
-        debug = True):
+        delta = 2, debug = True):
         self.index = index
         self.audio_id = audio_id
         self.section_name = self.audio_id.section_name
@@ -155,6 +162,7 @@ class Section:
         self.sample_rate = self.recording.sample_rate
         self.start_tones = start_tones
         self.debug = debug
+        self.delta = delta
         self.ok = True
         if not self.start_tones: self._find_start_tones()
         else: self._start_time_start_audio = 0
@@ -250,7 +258,7 @@ class Section:
         self.start_delta = self.audio_id.timestamps.start - self.start
         self.end_delta = self.end_tone_estimated_end - self.end
         self.delta_warning, self.tone_warning = False, False
-        if self.end_delta > 1: self.delta_warning = True
+        if abs(self.end_delta) > 1: self.delta_warning = True
         if self.n_start_tones < 2:self.tone_warning = True
 
     def _make_wav_filename_base(self, goal_directory= ''):
@@ -273,8 +281,8 @@ class Section:
         wav_filename = self.wav_filename_base + '_ch-' + str(channel) + '.wav'
         if os.path.isfile(wav_filename): return
         cmd = 'sox ' + input_filename + ' ' + wav_filename + ' '
-        cmd += ' trim ' + str(self.start)
-        cmd += ' ' + str(self.duration)
+        cmd += ' trim ' + str(self.start - self.delta)
+        cmd += ' ' + str(self.duration + self.delta)
         print(cmd)
         os.system(cmd)
         
@@ -407,5 +415,23 @@ def _find_threshold(samples):
     print('median',median, 'max',maximum, 'threshold',threshold)
     return threshold
 
+
+def section_to_json(section, return_dict = False):
+    path = locations.json_sections_output_directory
+    filename = path + section.wav_filename_base.split('/')[-1] + '.json'
+    keys = 'index,section_name,sample_rate,ok,n_start_tones,start,end'
+    keys += ',duration,n_end_tones,end_tone_estimated_end,start_delta'
+    keys += ',end_delta,delta'
+    keys = keys.split(',')
+    d = {}
+    for key in keys:
+        d[key] = section.__dict__[key]
+    d['microphone_name'] = section.recording.microphone_name
+    with open(filename, 'w') as fout:
+        json.dump(d,fout)
+    if return_dict:
+        return d
+    
+    
 
 
