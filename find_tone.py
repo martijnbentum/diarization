@@ -101,8 +101,13 @@ class Recording:
                 break
         '''
 
-    def _find_start(self):
+    def _make_wav_filename(self):
         self.wav_filename = self.selected_audio.path
+        if locations.path == locations.mac_path: return
+        self.wav_filename.replace(locations.mac_path, locations.path)
+
+    def _find_start(self):
+        self._make_wav_filename()
         self.sample_rate= self.selected_audio.sample_rate
         self.start_audio, sr = sf.read(self.wav_filename, start = 0,
             stop = 300 * self.sample_rate)
