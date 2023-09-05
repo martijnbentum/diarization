@@ -104,7 +104,8 @@ class Recording:
     def _make_wav_filename(self):
         self.wav_filename = self.selected_audio.path
         if locations.path == locations.mac_path: return
-        self.wav_filename.replace(locations.mac_path, locations.path)
+        f = self.wav_filename
+        self.wav_filename = f.replace(locations.mac_path, locations.path)
 
     def _find_start(self):
         self._make_wav_filename()
