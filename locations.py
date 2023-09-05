@@ -1,10 +1,12 @@
 import platform
 
+linux_path = '/media/mb/BACKUP_4TB/'
+mac_path = '/Volumes/BACKUP_4TB/'
 
 if 'Linux' in platform.platform():
-    path = '/media/mb/BACKUP_4TB/'
+    path = linux_path
 elif 'macOS' in platform.platform():
-    path = 'Volumes/BACKUP_4TB/'
+    path = mac_path
 else: raise ValueError('windows')
     
 # base ='/Volumes/INTENSO/diarization_10-08-23/third_session_play/'
