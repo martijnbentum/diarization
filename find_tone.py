@@ -11,8 +11,9 @@ import scipy.signal as signal
 
 class Recordings:
     def __init__(self, find_start = False, sections_output_directory = None):
-        d = locations.sections_output_directory
-        self.sections_output_directory = d
+        if not sections_output_directory:
+            directory = locations.sections_output_directory
+            self.sections_output_directory = directory
         self.find_start = find_start
         self.audio_ids = audio_identifier.Audio_ids()
         self.audios = self.audio_ids.audios
@@ -129,13 +130,16 @@ class Recording:
     def make_sections(self):
         self.sections = []
         self.errors = []
+        self.warnings = []
         for index, audio_id in enumerate(self.audio_ids.audio_ids):
             if index == 0: start_tones = self.first_start_tones
             else: start_tones = None
             section = Section(index, audio_id,self, start_tones)
+            if section.delta_warning or section.tone_warning:
+                self.warnings.append(section)
             if section.ok:
                 self.sections.append(section)
-            else: self.errors.append([index,audio_id])
+            else: self.errors.append(section)
 
     def extract_audio_all_sections(self, goal_directory = ''):
         for section in self.sections:
@@ -153,8 +157,10 @@ class Section:
         self.debug = debug
         self.ok = True
         if not self.start_tones: self._find_start_tones()
-        else: self._start_time_audio = 0
+        else: self._start_time_start_audio = 0
         self._set_start_end_section()
+        self._find_end_tones()
+        self._set_accuracy()
 
     def __repr__(self):
         m = 'Section: ' + str(self.index) + ' '
@@ -162,24 +168,30 @@ class Section:
         m += self.recording.microphone_name + ' '
         m += str(round(self.start,2)) + ' '
         m += str(round(self.end,2)) + ' '
-        m += str(round(self.duration,2)) 
+        m += str(round(self.duration,2)) + ' '
+        m += str(round(self.start_delta,2)) + ' '
+        m += str(round(self.end_delta,2)) + ' ' 
+        m += str(self.n_start_tones) + ' ' + str(self.n_end_tones)
         return m
 
-    def _get_audio(self):
+    def _make_index(self,seconds):
+        return int(round(seconds * self.sample_rate,0))
+
+    def _get_start_audio(self):
         start = self.audio_id.timestamps.start_tone_section - 20
-        start_index = int(round(start * self.sample_rate,0))
+        start_index = self._make_index(start)
         end = self.audio_id.timestamps.start + 20
-        end_index = int(round(end * self.sample_rate,0))
+        end_index = self._make_index(end)
         self.start_audio, sr = sf.read(
             self.recording.wav_filename, 
             start = start_index,
             stop = end_index)
-        self._start_time_audio = start
-        self._end_time_audio = end
+        self._start_time_start_audio = start
+        self._end_time_start_audio = end
 
     def _find_start_tones(self):
         frequency = 500
-        self._get_audio()
+        self._get_start_audio()
         d = {'sample_rate':self.recording.sample_rate,
             'input_signal':self.start_audio,
             'frequency':frequency, 'return_all': True}
@@ -190,17 +202,56 @@ class Section:
             tone = Tone(index,'start',start,end,self,frequency)    
             self.start_tones.append(tone)
         if self.debug:
-            self._magnitudes = m
-            self._timestamps = ts
+            self._start_magnitudes = m
 
     def _set_start_end_section(self):
         print(self.section_name,self.index,self.start_tones)
-        if not self.start_tones: 
+        self.n_start_tones = len(self.start_tones)
+        if self.n_start_tones == 0: 
             self.ok = False
             return
-        self.start = self.start_tones[-1].end + 1 + self._start_time_audio
+        self.start = self.start_tones[-1].end + 1 + self._start_time_start_audio
         self.end = self.start + self.audio_id.section_audio[0].seconds
         self.duration = self.end - self.start
+
+    def _get_end_audio(self):
+        start = self.end - 20
+        start_index = self._make_index(start)
+        end = self.end + 20
+        end_index = self._make_index(end)
+        self.end_audio, sr = sf.read(
+            self.recording.wav_filename, 
+            start = start_index,
+            stop = end_index)
+        self._start_time_end_audio = start
+        self._end_time_end_audio = end
+
+    def _find_end_tones(self):
+        frequency = 300
+        self._get_end_audio()
+        d = {'sample_rate':self.recording.sample_rate,
+            'input_signal':self.end_audio,
+            'frequency':frequency, 'return_all': True}
+        o, ts, m = get_start_end_timestamps(**d)
+        self.end_tones = []
+        for index,line in enumerate(o):
+            start, end = line
+            tone = Tone(index,'end',start,end,self,frequency)    
+            self.end_tones.append(tone)
+        if self.debug:
+            self._end_magnitudes = m
+        self.n_end_tones = len(self.end_tones)
+        if self.n_end_tones == 0: self.end_tone_estimated_end = 0
+        else:
+            self.end_tone_estimated_end = self._start_time_end_audio 
+            self.end_tone_estimated_end += self.end_tones[0].start - 1
+
+    def _set_accuracy(self):
+        self.start_delta = self.audio_id.timestamps.start - self.start
+        self.end_delta = self.end_tone_estimated_end - self.end
+        self.delta_warning, self.tone_warning = False, False
+        if self.end_delta > 1: self.delta_warning = True
+        if self.n_start_tones < 2:self.tone_warning = True
 
     def _make_wav_filename_base(self, goal_directory= ''):
         if not os.path.isdir(goal_directory): 
