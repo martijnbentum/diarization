@@ -108,7 +108,7 @@ class Recording:
         self.wav_filename = f.replace(locations.mac_path, locations.path)
 
     def _find_start(self):
-        self._make_wav_filename()
+        self.wav_filename = self.selected_audio.path
         self.sample_rate= self.selected_audio.sample_rate
         self.start_audio, sr = sf.read(self.wav_filename, start = 0,
             stop = 300 * self.sample_rate)
