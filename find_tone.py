@@ -8,36 +8,6 @@ import scipy.io.wavfile as wav
 import soundfile as sf
 import scipy.signal as signal
 
-class Channel_info():
-    def __init__(self):
-        pass
-
-
-def pickle_recording(recording, directory = ''):
-    f = recording.filename.split('/')[-1].split('.')[0] + '.pickle'
-    if directory and os.path.isdir(directory):
-        if not directory.endswith('/'): directory += '/'
-        f = directory + f
-        print('saving in dir:',directory, '\nfilename:',f)
-    else:print('saving in local folder',f)
-    recording.input_signal = None
-    with open(f,'wb') as fout:
-        pickle.dump(recording,fout)
-
-def load_pickle_recording(wav_filename = '', directory = '', 
-    pickle_filename =''):
-    if wav_filename:
-        f = wav_filename.split('/')[-1].split('.')[0] + '.pickle'
-        if directory and os.path.isdir(directory):
-            if not directory.endswith('/'): directory += '/'
-            f = directory + f
-            print('loading in dir:',directory, '\nfilename:',f)
-        else:print('loading in local folder',f)
-    elif pickle_filename: f = pickle_filename
-    else: raise ValueError('provide wav_filename or pickle_filename')
-    with open(f,'rb') as fin:
-        recording = pickle.load(fin)
-    return recording
 
 class Recordings:
     def __init__(self, find_start = False, sections_output_directory = None):
