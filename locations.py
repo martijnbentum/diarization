@@ -53,6 +53,9 @@ right_respeaker_directory = base_rec + 'respeaker_rechts/'
 #recorded audio split into sections
 sections_output_directory = base + 'sections/'
 json_sections_output_directory = base + 'json_sections/'
+sections_textgrid_directory = base + 'sections_textgrids/'
+sections_adjustment_textgrid_directory = base + 'adjustments_textgrids/'
+
 
 #split audio files
 grensvlak_filename = base_rec + 'grensvlak/T72_ISO.wav'
