@@ -1,3 +1,5 @@
+'''record audio and log degree of arrival information from respeaker.'''
+
 import json
 import logger
 import platform
@@ -29,6 +31,7 @@ def make_controller(name, play_audio_filename, stop_time):
     
     
 def record_all_ifadv(start_index = 0, skip_recorded = True):
+    '''play and record all ifadv conversations.'''
     fn = glob.glob(ifdav_dir + '*.wav')
     start = 0
     for f in fn[start_index:]:
@@ -49,6 +52,10 @@ def record_all_ifadv(start_index = 0, skip_recorded = True):
 
 
 class Controller:
+    '''record audio with respeaker and store degree of arrival information
+    stored a json file to align audio and doa information.
+    stores in w64 format to allow long recordings
+    ''' 
     def __init__(self, name, play_audio_filename = None,interval = 0.2):
         self.platform = platform.platform()
         self.name = name
