@@ -41,6 +41,8 @@ audio_id_filename =base_support + 'mix_id_to_audio_id_mapping.txt'
 audio_id_original_filename=base_support +'audio_id_mapping_orginal_ifadv.txt'
 phrases_db_filename = base_support + 'phrases_db_list'
 turn_db_filename = base_support + 'turn_db_list'
+sections_adjustment_textgrid_directory = base + 'adjustments_textgrids/'
+basic_section_tables_directory = base_support + 'sections_tables/'
 
 #recorded audio
 base_rec = base
@@ -54,7 +56,7 @@ right_respeaker_directory = base_rec + 'respeaker_rechts/'
 sections_output_directory = base + 'sections/'
 json_sections_output_directory = base + 'json_sections/'
 sections_textgrid_directory = base + 'sections_textgrids/'
-sections_adjustment_textgrid_directory = base + 'adjustments_textgrids/'
+sections_tables_directory = base + 'sections_textgrids/'
 
 
 #split audio files
