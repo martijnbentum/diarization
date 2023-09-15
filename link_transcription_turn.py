@@ -25,40 +25,29 @@ def make_filename_to_transcriptions_dict(tables = None, directory = None):
         d[filename] = Transcriptions(filename, tables)
     return d
 
-def make_filename_tables_dict(tables = None, directory = None):
-    ''' link each transcription filename to the corresponding table objects.
-    not directly used to create the transcriptions objects
-    '''
-    if not tables: 
-        Tables = handle_phrases.Tables()
-        tables = Tables.tables
-    fn = get_mix_filenames(directory)
-    d = {}
-    for filename in fn:
-        d[filename] = filename_to_tables(filename, tables)
-    return d
-
 def get_mix_filenames(directory = None):
     '''get all filenames of all transcription text files.'''
     if not directory: 
-        directory = locations.play_transcription_tables_directory
+        # directory = locations.play_transcription_tables_directory
+        directory = locations.basic_section_tables_directory
     return glob.glob(directory + '*.txt')
 
-def filename_to_tables(filename, tables):
+def identifier_name_to_tables(identifier, tables):
     '''find the table object(s) that correspond to a given transcription file.
     '''
-    if 'nch' in filename: return _handle_mix_filename(filename, tables)
-    if 'DVA' in filename: return _handle_orignal_filename(filename, tables)
+    if 'nch' in identifier: return _handle_mix_filename(identifier, tables)
+    if 'DVA' in identifier: return _handle_orignal_filename(identifier, tables)
 
 def _handle_mix_filename(filename,tables):
     '''helper function for filename to table for the mix transcriptions.
     '''
     speakers = filename.split('spk-')[-1].split('.')[0].split('-')
     output = []
-    for speaker in speakers:
-        for table in tables:
-            if table in output: continue
-            if speaker in table.speaker_ids: output.append(table)
+    for table in tables:
+        add_table = True
+        for speaker in table.speaker_ids: 
+            if speaker not in speakers: add_table = False
+        if add_table:output.append(table)
     return output
 
 def _handle_orignal_filename(filename, tables):
@@ -67,7 +56,6 @@ def _handle_orignal_filename(filename, tables):
     identifier = filename.split('/')[-1].split('.')[0]
     for table in tables:
         if identifier == table.identifier: return [table]
-
 
 def open_transcription(filename):
     '''Open transcription text file and create Transcription object for each
@@ -78,21 +66,30 @@ def open_transcription(filename):
     with open(filename) as fin:
         t = [line.split('\t') for line in fin.read().split('\n') if line]
     output = []
-    for index, line in enumerate(t):
-        line[1] = float(line[1])
+    index = 0
+    for line in t[1:]:
+        if line[1] == 'other': continue
+        line[0] = float(line[0])
         line[3] = float(line[3])
         output.append(Transcription(line,index))
+        index +=1
     return output
 
-def get_section_wav_filenames(transcription_filename):
+
+def get_section_wav_filenames(identifier):
     fn = get_play_section_wav_filenames()
-    name = transcription_filename.split('/')[-1].split('.')[0]
     output = []
     for f in fn:
         wav_name = f.split('/')[-1].split('_ch-')[0]
-        if name == wav_name: output.append(f)
+        if identifier == wav_name: output.append(f)
     return output
         
+def filename_to_identifier(filename):
+    name = filename.split('/')[-1].split('.')[0]
+    mn = ['left_respeaker', 'right_respeaker', 'shure', 'minidsp', 'grensvlak']
+    for microphone_name in mn:
+        if microphone_name in name: name = name.replace(microphone_name+'_','')
+    return name
     
 
 class Transcriptions:
@@ -101,9 +98,11 @@ class Transcriptions:
     '''
     def __init__(self,filename, tables):
         self.transcription_filename = filename
-        self.section_wav_filenames = get_section_wav_filenames(filename)
+        self.identifier = filename_to_identifier(filename)
+        self.section_wav_filenames = get_section_wav_filenames(self.identifier)
         self._make_speaker_to_channel_dict()
-        self.tables = filename_to_tables(filename, tables)
+        self.tables = identifier_name_to_tables(self.identifier, tables)
+        print(filename,self.identifier, len(tables))
         self.transcriptions = open_transcription(filename)
         self._find_turns()
         
@@ -117,7 +116,7 @@ class Transcriptions:
     def _make_speaker_to_channel_dict(self):
         fn = self.section_wav_filenames
         self.speaker_to_channel_dict = {}
-        if 'DVA' in fn[0]: 
+        if 'DVA' in self.transcription_filename: 
             self.speaker_to_channel_dict['spreker1'] = '1'
             self.speaker_to_channel_dict['spreker2'] = '2'
             return
@@ -133,6 +132,7 @@ class Transcriptions:
         '''
         self.all_turns = []
         self.excluded_turns = []
+        print(self.tables)
         for table in self.tables:
             self.all_turns.extend(table.turns)
         for transcription in self.transcriptions:
@@ -148,10 +148,10 @@ class Transcription:
     def __init__(self, line, index):
         self.line = line
         self.index = index
-        self.speaker_id = line[0]
-        self.start_time = line[1]
-        self.end_time = line[3]
+        self.start_time = line[0]
+        self.speaker_id = line[1]
         self.text = line[2]
+        self.end_time = line[3]
 
     def __repr__(self):
         m = 'transcription: '+str(self.index) + ' ' +self.speaker_id
