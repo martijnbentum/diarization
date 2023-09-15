@@ -1,3 +1,5 @@
+'''Diarization based on degree of arrival as provided by respeaker.'''
+
 import ifadv_clean
 from pyannote.core import Segment, Annotation, notebook
 from pyannote.metrics.diarization import DiarizationErrorRate
