@@ -1,9 +1,13 @@
+'''create words to identify sections in the long recording
+Audio_id is an object that maps audio id word to specific section and
+computes the duration of a section based on the audio file that is played during
+recording
+'''
+
 import os
 from wonderwords import RandomWord
 import locations
 r = RandomWord()
-
-
 
 def random_word():
     word = r.word(include_parts_of_speech=['noun','adjectives'],
@@ -15,25 +19,30 @@ def random_words(n):
     return words
 
 def say_random_word():
+    '''use mac command line say to synthesize a spoken word'''
     word = random_word()
     say(word)
 
 def say_random_words(n):
+    '''use mac command line say to synthesize multiple spoken words'''
     words = ' '.join(random_words(n))
     say(words)
 
 def say(text):
+    '''use mac command line say to synthesize text'''
     cmd = 'say -v Moira ' + text
     print(cmd)
     os.system(cmd)
 
 def record_random_word(say_word = True):
+    '''use mac command line say to synthesize a word and store it as a wav file'''
     word = random_word()
     output_filename = word
     record(word, output_filename)
     if say_word: say(word)
 
 def record_random_words(n, output_dir = None, say_words = False):
+    '''record n random words with mac command line say and stor as wav file.'''
     if output_dir == None: locations.random_word_directory
     words = '_'.join(random_words(n))
     output_filename = output_dir + words
@@ -42,6 +51,7 @@ def record_random_words(n, output_dir = None, say_words = False):
     return words, output_filename
 
 def record(text, output_filename):
+    '''record a text with mac command line say and convert audio file to wav'''
     # f = output_filename.replace('../','')
     f = output_filename.split('/')[-1]
     if '.' in f:
@@ -49,7 +59,7 @@ def record(text, output_filename):
     cmd = 'say -v Moira ' + text + ' -o ' + output_filename + '.aiff'
     os.system(cmd)
     print(cmd)
-    sox_cmd = 'sox ' + output_filename + '.aiff -r 48000 ' + output_filename + '.wav'
+    sox_cmd = 'sox '+output_filename + '.aiff -r 48000 ' + output_filename + '.wav'
     os.system(sox_cmd)
     os.system('rm ' + output_filename + '.aiff')
 
@@ -58,11 +68,19 @@ def record(text, output_filename):
 
 
 def open_mix_file(filename):
+    '''open file with mapping between audio id and the section.'''
     with open(filename) as fin:
         o = [line.split('\t') for line in fin.read().split('\n') if line]
     return o
 
 class Audio_ids:
+    '''stores all audio ids for all sections in the long audio that was
+    played for the recording.
+    based on this information an expected start and end time can be estimated
+    audios      is a dictionary that contains information about audio files
+    start_time  can be adjusted to the moment the played audio starts in a
+                recording of a given microphone
+    '''
     def __init__(self, audios = None, start_time = 0): 
         if not audios: 
             import audio
@@ -91,6 +109,9 @@ class Audio_ids:
             self.audio_ids.append(aid)
 
     def _fix_audio_id_order(self):
+        '''the sections were played in the order 6, 4, 2 speakers
+        it was stored in the map file in another order
+        '''
         temp = []
         for n in [6,4,2]:
             for line in self._audio_id:
@@ -99,6 +120,9 @@ class Audio_ids:
         self._audio_id = temp
 
 class Audio_id:
+    '''and audio id contains information about a given section in the long
+    audio that was played for the recording
+    '''
     def __init__(self,line, recording_index, section_set_index, audio_ids):
         self.line = line
         self.recording_index = recording_index
@@ -189,6 +213,11 @@ class Audio_id:
         else: self.no_tones_audio_id = False
         
 class Timestamps:
+    '''contains information of the start and end time of a section in the 
+    long audio played
+    with find tone the timestamps can be adjusted to a time in recorded audio
+    of a given microphone
+    '''
     def __init__(self,audio_id):
         self.audio_id = audio_id
         self.recording_index = self.audio_id.recording_index
