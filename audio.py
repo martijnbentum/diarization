@@ -1,3 +1,9 @@
+'''module to collect information of audio files.
+The audio object stores information collected with soxi command
+Information of all played and recorded audio files is collected and
+can be accessed with the dictionary created by make_audios
+'''
+
 import glob
 import random
 import re
@@ -6,8 +12,10 @@ import os
 import locations
 
 
-def make_audio_info_dict():
-    # fn = glob.glob('../audio_info/*.txt')
+def _make_audio_info_dict():
+    '''return a dictionary with text information about audio files
+    helper function for make_audios 
+    '''
     fn = glob.glob(locations.audio_info + '*.txt')
     audio_infos = {}
     total, total_d = 0, 0
@@ -23,7 +31,10 @@ def make_audio_info_dict():
 
 
 def make_audios(audio_info_dict = None):
-    if not audio_info_dict: audio_info_dict = make_audio_info_dict()
+    '''
+    return a dictionary with Audio object with information about audio files.
+    '''
+    if not audio_info_dict: audio_info_dict = _make_audio_info_dict()
     audios = {}
     for name, value in audio_info_dict.items():
         if name not in audios.keys(): audios[name] = {}
@@ -34,6 +45,10 @@ def make_audios(audio_info_dict = None):
 
 
 class Audio:
+    '''
+    Object to sture audio file information
+    duration, sample rate, samples, filename, file type, sample encoding
+    '''
     def __init__(self,file_id, info):
         self.file_id = file_id
         self.info = info
@@ -70,6 +85,7 @@ class Audio:
 
 
 def make_time(seconds):
+    '''maps seconds to string representration of duration.'''
     seconds = int(seconds)
     h = str(seconds //3600)
     seconds = seconds % 3600
@@ -83,6 +99,7 @@ def make_time(seconds):
 
 
 def _make_audio_infos():
+    '''create information text file for audio files of relevant directories.'''
     _make_audio_info('section_audio_info.txt', locations.section_directory)
     _make_audio_info('combined_audio_info.txt', locations.combined_directory)
     _make_audio_info('tone_audio_info.txt', locations.tone_directory)
@@ -109,6 +126,7 @@ def _make_audio_infos():
 
 def _make_audio_info(output_name, audio_dir= locations.section_directory, 
     ext = '.wav'):
+    '''create information text for audio files in a give directory.'''
     fn = glob.glob(audio_dir + '*' + ext)
     output = []
     for f in fn:
