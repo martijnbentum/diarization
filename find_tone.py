@@ -1,3 +1,11 @@
+'''Module to extract sections in long recordings based on tones.
+Uses the Audio_id object from audio_identifier to estimate start and end
+times of section based on the played audio
+Finds the start and end tones in a long recording of a given microphone and 
+adjusts the start time accordingly
+The found start times were correct manually in praat
+'''
+
 import audio_identifier
 import glob
 import json
@@ -10,6 +18,7 @@ import scipy.signal as signal
 
 
 class Recordings:
+    '''Object to hold all recordings of the different microphones.'''
     def __init__(self, find_start = False, sections_output_directory = None):
         if not sections_output_directory:
             directory = locations.sections_output_directory
@@ -25,6 +34,10 @@ class Recordings:
         self.sections_made = False
 
     def _set_channel_infos(self):
+        '''a microphone can consist of an array of microphones
+        channels infos defines these microphones as channels
+        sets the channel that should be used for tone detection
+        '''
         filename = locations.recording_name_channels_filename
         t = open(filename).read().split('\n')
         d = dict([line.split('|') for line in t if line])
@@ -42,18 +55,26 @@ class Recordings:
                 'processed':processed}
 
     def _make_recordings(self):
+        '''create a Recording object for a specific microphone.'''
         self.recordings = []
         for microphone_name in self.microphone_names:
             recording = Recording(microphone_name, self)
             self.recordings.append(recording)
 
     def make_all_sections(self):
+        '''The audio played for the recording consisted of multiple sections.
+        by finding the start tone of each section we can set start and
+        end times for audio extraction
+        '''
         for recording in self.recordings:
             print(recording.microphone_name,'making sections')
             recording.make_sections()
         self.sections_made = True
 
     def extract_audio_sections_for_all_recordings(self):
+        '''based on the start and times set by make_all_sections
+        the audio for each section for each recording is extracted
+        '''
         directory = self.sections_output_directory
         for recording in self.recordings:
             print(recording.microphone_name)
@@ -65,6 +86,9 @@ class Recordings:
 
 
 class Recording:
+    '''a recording a specific microphone e.g. respeaker or shure
+    the microphone can consist of microphone array i.e. multiple channels
+    '''
     def __init__(self, microphone_name, recordings):
         self.microphone_name = microphone_name
         self.recordings = recordings
@@ -94,20 +118,20 @@ class Recording:
     def _find_audio_info(self):
         self.selected_channel = self.channel_info['selected']
         self.selected_audio=self.channel_to_audio_dict[self.selected_channel]
-        '''
-        for name, audio in self.audios.items():
-            if self.selected_channel in name: 
-                self.selected_audio= audio
-                break
-        '''
 
     def _make_wav_filename(self):
+        '''create the audio filename for the microphone recording and selected
+        channel (channel selection is based on channel info
+        '''
         self.wav_filename = self.selected_audio.path
         if locations.path == locations.mac_path: return
         f = self.wav_filename
         self.wav_filename = f.replace(locations.mac_path, locations.path)
 
     def _find_start(self):
+        '''find the beginning of the played audio in to long recording.
+        set the Audio_id start the the start of the played audio in the recording
+        '''
         self.wav_filename = self.selected_audio.path
         self.sample_rate= self.selected_audio.sample_rate
         self.start_audio, sr = sf.read(self.wav_filename, start = 0,
@@ -118,6 +142,11 @@ class Recording:
             start_time = self.start_time_tone_section)
 
     def _handle_tones(self,frequency, audio, name):
+        '''find tones with a frequency in audio
+        frequency       the frequency of the tone to be found
+        audio           the np array representation of the audio
+        name            the name for the tone object e.g start tone
+        '''
         d = {'sample_rate':self.sample_rate,'input_signal':audio,
             'frequency':frequency, 'return_all': True}
         o, ts, m = get_start_end_timestamps(**d)
@@ -130,6 +159,8 @@ class Recording:
         self._timestamps = ts
 
     def _find_start_time(self):
+        '''find the beginning of the played audio in to long recording.
+        '''
         audio_ids = self.recordings.audio_ids.audio_ids
         word_duration = audio_ids[0].audio_id_word_duration
         time_to_first_start_tone = word_duration + 8
@@ -137,6 +168,14 @@ class Recording:
         self.start_time_tone_section = start_tone - time_to_first_start_tone
         
     def make_sections(self):
+        '''create the audio sections
+        the played audio consists of multiple sections with start and end tones
+        based on the expected start times based on the original section audios
+        the real start times are estimated based on the start and end tones
+        the end times is always based on the original audio time combined
+        with the found start time
+        (the start time was manually corrected)
+        '''
         self.sections = []
         self.errors = []
         self.warnings = []
@@ -154,11 +193,25 @@ class Recording:
         self.n_sections = len(self.sections)
 
     def extract_audio_all_sections(self, goal_directory = ''):
+        '''extract the sections to audio files (for all microphones
+        in the microphone array)
+        '''
         for section in self.sections:
             section.extract_section_from_all_channels(goal_directory)
             section_to_json(section)
         
 class Section:
+    '''a section within the long recording 
+    A section is used to represent to start in the long recording of
+    a given microphone
+    It corresponds to:
+    a specific audio section with 6 4 or 2 speakers and orthographic annotations
+    a section is between ~ 15 and 45 minutes long.
+    The original files were dialogues 4 and 6 speakers were created by
+    combining recordings
+    All files without DVA in the filename do not have overlapping speakers
+    Files with DVA are original dialogues and do have overlapping speakers
+    '''
     def __init__(self, index, audio_id, recording, start_tones = None, 
         delta = 2, debug = True):
         self.index = index
@@ -192,6 +245,7 @@ class Section:
         return int(round(seconds * self.sample_rate,0))
 
     def _get_start_audio(self):
+        '''get the np array of the audio of  the expected start of the section.'''
         start = self.audio_id.timestamps.start_tone_section - 20
         start_index = self._make_index(start)
         end = self.audio_id.timestamps.start + 20
@@ -204,6 +258,7 @@ class Section:
         self._end_time_start_audio = end
 
     def _find_start_tones(self):
+        '''finds the time points of the two start tones in the start audio.'''
         frequency = 500
         self._get_start_audio()
         d = {'sample_rate':self.recording.sample_rate,
@@ -219,6 +274,10 @@ class Section:
             self._start_magnitudes = m
 
     def _set_start_end_section(self):
+        '''set the start and end time of section based on the found
+        start tones and the duration of this section
+        duration of the section is stored in the audio_id object
+        '''
         print(self.section_name,self.index,self.start_tones)
         self.n_start_tones = len(self.start_tones)
         if self.n_start_tones == 0: 
@@ -229,6 +288,7 @@ class Section:
         self.duration = self.end - self.start
 
     def _get_end_audio(self):
+        '''load the np array of the end of the section.'''
         start = self.end - 20
         start_index = self._make_index(start)
         end = self.end + 20
@@ -241,6 +301,9 @@ class Section:
         self._end_time_end_audio = end
 
     def _find_end_tones(self):
+        '''find the two end tones in the end audio.
+        this is a sanity check whether this corresponds to the expected end time.
+        '''
         frequency = 300
         self._get_end_audio()
         d = {'sample_rate':self.recording.sample_rate,
@@ -261,6 +324,7 @@ class Section:
             self.end_tone_estimated_end += self.end_tones[0].start - 1
 
     def _set_accuracy(self):
+        '''compares estimated and found start and end times'''
         self.start_delta = self.audio_id.timestamps.start - self.start
         self.end_delta = self.end_tone_estimated_end - self.end
         self.delta_warning, self.tone_warning = False, False
@@ -268,6 +332,7 @@ class Section:
         if self.n_start_tones < 2:self.tone_warning = True
 
     def _make_wav_filename_base(self, goal_directory= ''):
+        '''create a base filename for storing extracted audio.'''
         if not os.path.isdir(goal_directory): 
             print(goal_directory, 'does not exists saving to currect directory')
             goal_directory = ''
@@ -277,10 +342,16 @@ class Section:
         self.wav_filename_base = m
 
     def extract_section_from_all_channels(self, goal_directory = ''):
+        '''extract the section for all channels (microphones) in the
+        current microphone array (recording).
+        '''
         for channel in self.recording.channel_to_audio_dict.keys():
             self.extract_audio(channel, goal_directory)
 
     def extract_audio(self, channel, goal_directory = ''):
+        '''extract and save audio for a given channel (microphone)
+        for this section found start and end times
+        '''
         self._make_wav_filename_base(goal_directory)
         audio_info = self.recording.channel_to_audio_dict[channel]
         input_filename = audio_info.path
@@ -294,6 +365,9 @@ class Section:
         
 
 class Tone:
+    '''represent the start and end time of a found tone.
+    tones are alway 1 second long
+    '''
     def __init__(self, index, name,start, end, parent, frequency):
         self.index = index
         self.name = name
@@ -314,6 +388,9 @@ class Tone:
     
         
 def load_audio(filename):
+    '''load audio in np array 
+    this function is not used by 
+    Recording or Section object'''
     try:
         sample_rate, audio_data = wav.read(filename)
     except ValueError:
@@ -324,6 +401,8 @@ def load_audio(filename):
 
 def get_start_end_timestamps(filename = None, sample_rate = None, 
     input_signal = None, frequency = 500, return_all = False):
+    '''find the start and end of tones of a specific frequency
+    '''    
     d = {'filename':filename,'sample_rate':sample_rate,
         'input_signal':input_signal,'frequency':frequency}
     sr, magnitudes= sliding_window_with_hamming(**d)
@@ -345,6 +424,9 @@ def get_start_end_timestamps(filename = None, sample_rate = None,
 
 def sliding_window_with_hamming(filename = None, sample_rate = None,
     input_signal = None, frequency = 500, window_size_ms = 500):
+    '''return magnitude for a given frequency in an audio 
+    (filename or input_signal).
+    '''
     if filename == sample_rate == input_signal == None:
         raise ValueError('provide filename or sample_rate & input_signal')
     if type(input_signal) == type(None):
@@ -375,6 +457,9 @@ def get_magnitude_at_frequency(frequency, audio_data, sample_rate):
     return ms[index]
 
 def find_segment(magnitudes, start_index, threshold):
+    '''find a longer segement in the magnitudes for a specific frequency
+    tones are 1 second long
+    '''
     start_tone_index = find_start(start_index, magnitudes,threshold)
     if start_tone_index == None: return None, None,None 
     if start_tone_index == len(magnitudes) -1: return None, None,None 
@@ -384,12 +469,14 @@ def find_segment(magnitudes, start_index, threshold):
     return start_tone_index, end_tone_index, end_tone_index+1
 
 def find_start(start_index, samples, threshold):
+    '''find start of tone'''
     _check_conditions(start_index, samples, threshold, 'start')
     for i in range(start_index, len(samples)):
         if samples[i] > threshold: return i
     return None
 
 def find_end(start_index, samples, threshold):
+    '''find end of tone'''
     _check_conditions(start_index, samples, threshold, 'end')
     for i in range(start_index, len(samples)):
         if samples[i] < threshold: return i
@@ -398,6 +485,8 @@ def find_end(start_index, samples, threshold):
 
 
 def _check_conditions(index, samples, threshold,condition_type):
+    '''tones should be multiple samples long (are alway 1 second)
+    '''
     if index >= len(samples): 
         raise ValueError('index is outside samples', index, 
             len(samples))
@@ -410,11 +499,13 @@ def _check_conditions(index, samples, threshold,condition_type):
             threshold, 'is: ', samples[index], threshold-samples[index])
     
 def _get_timestamps(sr, samples):
+    '''creates timestamps for a set of samples based on sample rate'''
     increments = 1/ sr
     timestamps = [round(i *increments,4) for i in range(len(samples))]
     return timestamps
 
 def _find_threshold(samples):
+    '''sets a threshold magnitude that signals start or end of a tone.'''
     median = np.median(samples)
     maximum = np.max(samples)
     threshold = (maximum*1.5 + median)/ 2
@@ -423,6 +514,7 @@ def _find_threshold(samples):
 
 
 def section_to_json(section, return_dict = False):
+    '''create a json representation of as ection.'''
     path = locations.json_sections_output_directory
     filename = path + section.wav_filename_base.split('/')[-1] + '.json'
     keys = 'index,section_name,sample_rate,ok,n_start_tones,start,end'
