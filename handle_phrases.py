@@ -138,6 +138,9 @@ class Table:
     def speaker_intensity_dict(self):
         d = {}
         for speaker_id, db in self.phrase_intensities_dict.items():
+            if not db: 
+                d[speaker_id] = None
+                continue
             linear_values = [10**(x/10) for x in db]
             avg_linear = sum(linear_values) / len(db)
             avg_decibel = 10 * np.log10(avg_linear)
@@ -233,8 +236,12 @@ class Turn:
         self.wav_filename += '_ti-' + str(self.turn_index) 
         self.wav_filename += '_ch-' + str(self.channel) + '.wav'
         self.turn_id = self.wav_filename.split('/')[-1].split('.')[0]
-        try:self.intensity = self.table.turn_to_db[self.wav_filename]
-        except: self.intensity = None
+        self.name = self.wav_filename.split('/')[-1]
+        if self.name not in self.table.turn_to_db.keys():
+            self.intensity = None
+            print(self.name)
+        else:
+            self.intensity = self.table.turn_to_db[self.name]
 
     def set_overlapping_turns(self):
         self.overlapping_turns = []
@@ -302,11 +309,13 @@ class Phrase:
         self.duration = p[5]
         self.overlapping_phrases = []
         self.wav_filename = phrase_dir + self.table.identifier + '_pi-'
-        self.wav_filename += str(self.phrase_index) + '_ch-' + str(self.channel) +'.wav'
+        self.wav_filename += str(self.phrase_index) + '_ch-'  
+        self.wav_filename = str(self.channel) +'.wav'
         self.extract_audio()
         self.part_of_turn = False
         self.turn = None
-        try:self.intensity = self.table.phrase_to_db[self.wav_filename]
+        self.name = self.wav_filename.split('/')[-1]
+        try:self.intensity = self.table.phrase_to_db[self.name]
         except:self.intensity = None
 
     def extract_audio(self):
@@ -422,7 +431,7 @@ def read_table(filename):
     for line in t:
         if not line: continue
         filename, db = line.split('\t')
-        d[filename] = float(db)
+        d[filename.split('/')[-1]] = float(db)
     return d
             
 
