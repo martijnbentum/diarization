@@ -84,22 +84,48 @@ def open_transcription(filename):
         output.append(Transcription(line,index))
     return output
 
+def get_section_wav_filenames(transcription_filename):
+    fn = get_play_section_wav_filenames()
+    name = transcription_filename.split('/')[-1].split('.')[0]
+    output = []
+    for f in fn:
+        wav_name = f.split('/')[-1].split('_ch-')[0]
+        if name == wav_name: output.append(f)
+    return output
+        
+    
+
 class Transcriptions:
     '''container object to hold all Transcription objects and match 
     corresponding turns.
     '''
     def __init__(self,filename, tables):
-        self.filename = filename
+        self.transcription_filename = filename
+        self.section_wav_filenames = get_section_wav_filenames(filename)
+        self._make_speaker_to_channel_dict()
         self.tables = filename_to_tables(filename, tables)
         self.transcriptions = open_transcription(filename)
         self._find_turns()
+        
 
     def __repr__(self):
-        m = 'Transcriptions: ' + self.filename
+        m = 'Transcriptions: ' + self.transcription_filename.split('/')[-1]
         m += ' ok: ' + str(self.ok)
         m += ' nturns: ' + str(len(self.transcriptions))
         return m
 
+    def _make_speaker_to_channel_dict(self):
+        fn = self.section_wav_filenames
+        self.speaker_to_channel_dict = {}
+        if 'DVA' in fn[0]: 
+            self.speaker_to_channel_dict['spreker1'] = '1'
+            self.speaker_to_channel_dict['spreker2'] = '2'
+            return
+        for f in fn:
+            speaker = f.split('_spk-')[-1].split('.')[0]
+            channel = f.split('_ch-')[-1].split('_spk-')[0]
+            self.speaker_to_channel_dict[speaker] = channel
+        
     def _find_turns(self):
         '''match each turn to transcription object
         not all turns will necessarily match (because the were not always used)
@@ -149,5 +175,10 @@ class Transcription:
         print(self,'could not find turn')
 
         
+
+
+def get_play_section_wav_filenames():
+    fn = glob.glob(locations.section_directory + '*.wav')
+    return fn
 
 
