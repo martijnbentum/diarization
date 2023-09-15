@@ -1,3 +1,4 @@
+'''cluster logged degree of arrival information of the respeaker.'''
 import logger
 import numpy as np
 from sklearn.cluster import MeanShift, estimate_bandwidth 
