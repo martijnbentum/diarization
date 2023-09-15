@@ -209,7 +209,7 @@ def link_wav_and_textgrid_files(fn_wav = None, fn_textgrid = None):
         
 def read_template():
     '''reads the praat template to create the praat adjustment script.'''
-    with open(locations.base + 'adjustments_template') as fin:
+    with open(locations.base_support + 'adjustments_template') as fin:
         template = fin.read().split('\n')
     return template
 
@@ -241,7 +241,7 @@ def make_adjustment_script(link_dictionary = None, save = False):
             template = set_template(fd)
             output.extend(template)
     if save:
-        with open(locations.base + 'adjust_all_textgrids.praat','w') as fout:
+        with open(locations.base_support+'adjust_all_textgrids.praat','w') as fout:
             fout.write('\n'.join(output))
     return output
 
