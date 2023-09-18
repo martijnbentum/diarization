@@ -1,7 +1,7 @@
 directory$ = "/Users/martijn.bentum/sections_textgrids/"
 table_directory$ = "/Users/martijn.bentum/sections_tables/"
-appendInfoLine: directory$
-wd$ = directory$ + "*.TextGrid"
+writeInfoLine: directory$
+wd$ = directory$ + "*.textgrid"
 file_list = Create Strings as file list: "file_list", wd$
 
 selectObject: file_list
@@ -17,10 +17,10 @@ for i from 1 to number_of_files
 		appendInfoLine: "file not readable" + " " + directory$ + filename$
 	else
 		appendInfoLine: "file readable " + filename$
-		table_filename$ = replace$ (filename$, ".TextGrid", ".csv",1)
-		name$ = replace$ (filename$, ".TextGrid", "", 1)
+		table_filename$ = replace$ (filename$, ".textgrid", ".table",1)
+		name$ = replace$ (filename$, ".textgrid", "", 1)
 		appendInfoLine: "table filename " + table_filename$
-		Down to Table: "no", 6, "yes", "no"
+		Down to Table: "no", 3, "yes", "no"
 		Save as tab-separated file: table_directory$ + table_filename$
 		selectObject: "TextGrid " + name$
 		plusObject: "Table " + name$
