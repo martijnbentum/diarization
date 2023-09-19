@@ -11,6 +11,7 @@ and a transcriptions object as value.
 import glob
 import handle_phrases
 import locations
+import json
 
 def make_filename_to_transcriptions_dict(tables = None, directory = None):
     '''create a dict with all transcriptions objects, 
@@ -22,14 +23,16 @@ def make_filename_to_transcriptions_dict(tables = None, directory = None):
     d = {}
     fn = get_mix_filenames(directory)
     for filename in fn:
-        d[filename] = Transcriptions(filename, tables)
+        if not filename_to_microphone_name(filename): continue
+        f = filename.replace(locations.base, '')
+        d[f] = Transcriptions(filename, tables)
     return d
 
 def get_mix_filenames(directory = None):
     '''get all filenames of all transcription text files.'''
     if not directory: 
         # directory = locations.play_transcription_tables_directory
-        directory = locations.basic_section_tables_directory
+        directory = locations.sections_tables_directory
     return glob.glob(directory + '*.txt')
 
 def identifier_name_to_tables(identifier, tables):
@@ -57,7 +60,7 @@ def _handle_orignal_filename(filename, tables):
     for table in tables:
         if identifier == table.identifier: return [table]
 
-def open_transcription(filename):
+def open_transcription(filename, parent = None):
     '''Open transcription text file and create Transcription object for each
     line.
     The transcription object can be used to find the corresponding turn
@@ -71,17 +74,27 @@ def open_transcription(filename):
         if line[1] == 'other': continue
         line[0] = float(line[0])
         line[3] = float(line[3])
-        output.append(Transcription(line,index))
+        output.append(Transcription(line,index, parent))
         index +=1
     return output
 
 
-def get_section_wav_filenames(identifier):
+def get_section_played_wav_filenames(identifier):
     fn = get_play_section_wav_filenames()
     output = []
     for f in fn:
         wav_name = f.split('/')[-1].split('_ch-')[0]
         if identifier == wav_name: output.append(f)
+    return output
+
+def get_section_recorded_wav_filenames(microphone_name, identifier):
+    fn = glob.glob(locations.sections_output_directory + '*.wav')
+    output = []
+    identifier = '_' + identifier.split('_spk-')[-1] + '_'
+    # print(identifier)
+    for wav_filename in fn:
+        if identifier in wav_filename and microphone_name in wav_filename: 
+            output.append(wav_filename)
     return output
         
 def filename_to_identifier(filename):
@@ -91,6 +104,11 @@ def filename_to_identifier(filename):
         if microphone_name in name: name = name.replace(microphone_name+'_','')
     return name
     
+def filename_to_microphone_name(filename):
+    name = filename.split('/')[-1].split('.')[0]
+    mn = ['left_respeaker', 'right_respeaker', 'shure', 'minidsp', 'grensvlak']
+    for microphone_name in mn:
+        if microphone_name in name: return microphone_name
 
 class Transcriptions:
     '''container object to hold all Transcription objects and match 
@@ -99,11 +117,15 @@ class Transcriptions:
     def __init__(self,filename, tables):
         self.transcription_filename = filename
         self.identifier = filename_to_identifier(filename)
-        self.section_wav_filenames = get_section_wav_filenames(self.identifier)
+        self.microphone_name = filename_to_microphone_name(filename)
+        fn  = get_section_played_wav_filenames(self.identifier)
+        self.section_played_wav_filenames = fn
+        fn = get_section_recorded_wav_filenames(self.microphone_name, self.identifier)
+        self.section_wav_filenames = fn
         self._make_speaker_to_channel_dict()
         self.tables = identifier_name_to_tables(self.identifier, tables)
-        print(filename,self.identifier, len(tables))
-        self.transcriptions = open_transcription(filename)
+        # print(filename,self.identifier, len(tables))
+        self.transcriptions = open_transcription(filename,self)
         self._find_turns()
         
 
@@ -114,7 +136,7 @@ class Transcriptions:
         return m
 
     def _make_speaker_to_channel_dict(self):
-        fn = self.section_wav_filenames
+        fn = self.section_played_wav_filenames
         self.speaker_to_channel_dict = {}
         if 'DVA' in self.transcription_filename: 
             self.speaker_to_channel_dict['spreker1'] = '1'
@@ -132,24 +154,34 @@ class Transcriptions:
         '''
         self.all_turns = []
         self.excluded_turns = []
-        print(self.tables)
+        # print(self.tables)
         for table in self.tables:
             self.all_turns.extend(table.turns)
         for transcription in self.transcriptions:
             transcription.find_turn(self.all_turns, self.excluded_turns)
             if transcription.ok: self.excluded_turns.append(transcription.turn)
         self.ok = len(self.excluded_turns) == len(self.transcriptions)
+
+    def to_json(self):
+        f = self.transcription_filename.split('/')[-1].replace('.txt','.json')
+        f = locations.sections_json_directory + f
+        o = [transcription_to_json(t) for t in self.transcriptions]
+        with open(f, 'w') as fout:
+            json.dump(o,fout)
+        return o
         
 
 class Transcription:
     '''object to represent a line in a transcription text file
     can be used to match the line with a turn object to link data
     '''
-    def __init__(self, line, index):
+    def __init__(self, line, index, parent):
         self.line = line
         self.index = index
+        self.parent = parent
         self.start_time = line[0]
         self.speaker_id = line[1]
+        self.microphone_name = self.parent.microphone_name
         self.text = line[2]
         self.end_time = line[3]
 
@@ -174,7 +206,63 @@ class Transcription:
         self.ok = False
         print(self,'could not find turn')
 
+    @property    
+    def channel(self):
+
+        if 'DVA' in self.parent.identifier:
+            return self.turn.phrases[0].channel
+        else: return int(self.parent.speaker_to_channel_dict[self.speaker_id])
         
+def _remove_base_dir(filename):
+    if type(filename) == list:
+        o = []
+        for f in filename:
+            o.append( _remove_base_directory(f) )
+        return o
+    else:
+        f = filename.replace(locations.base, '')
+        return f
+
+def _transcription_textgrid_filename(filename):
+    f = filename.replace('sections_tables','sections_textgrids')
+    f = f.replace('.txt','.textgrid')
+    return f 
+
+def _find_play_audio_filenames(identifier, channel):
+    if 'DVA' in identifier:
+        directory = locations.original_directory 
+    else:
+        directory = locations.section_directory
+    ch = '_ch-' + str(channel)
+    fn = glob.glob(directory + '*.wav')
+    for f in fn:
+        if identifier in f and ch in f: 
+            return _remove_base_directory(f)
+        
+def transcription_to_json(transcription):
+    t = transcription
+    d = {}
+    d['identifier'] = t.parent.identifier
+    d['microphone_name'] = t.microphone_name
+    fn = _remove_base_dir(t.parent.section_wav_filenames)
+    d['section_wav_filenames'] = fn
+    f = _remove_base_dir(t.parent.transcription_filename)
+    d['transcription_filename'] = f
+    d['textgrid_filename'] = _transcription_textgrid_filename(f)
+    d['turn_wav_filename'] = _remove_base_dir(t.turn.wav_filename)
+    f = _find_play_audio_filenames(t.parent.identifier,t.channel)
+    d['played_section_wav_filename']= f
+    d['ifadv_wav_filename'] = _remove_base_dir(t.turn.table.wav_filename)
+    d['played_channel'] = t.channel
+    d['start_time'] = t.start_time
+    d['end_time'] = t.end_time
+    d['transcription'] = t.text
+    d['played_intensity'] = t.turn.intensity
+    d['speaker_id'] = t.turn.speaker.id
+    d['speaker_age'] = t.turn.speaker.age
+    d['speaker_sex'] = t.turn.speaker.sex
+    return d
+    
 
 
 def get_play_section_wav_filenames():
