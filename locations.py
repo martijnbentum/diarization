@@ -79,4 +79,6 @@ ifadv_turns_directory = ifadv_dir + 'TURNS/'
 
 face_landmarks_filename = '/Users/martijn.bentum/IFADV/'
 face_landmarks_filename += 'video/shape_predictor_68_face_landmarks.dat'
+video_directory = '/Users/martijn.bentum/IFADV/video/'
+video_info= '/Users/martijn.bentum/IFADV/video_info/'
 
