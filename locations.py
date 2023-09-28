@@ -7,6 +7,8 @@ if 'Linux' in platform.platform():
     path = linux_path
 elif 'macOS' in platform.platform():
     path = mac_path
+elif 'Darwin' in platform.platform():
+    path = mac_path
 else: raise ValueError('windows')
     
 # base ='/Volumes/INTENSO/diarization_10-08-23/third_session_play/'
@@ -74,4 +76,7 @@ ifadv_txt_directory = ifadv_dir +'TXT/'
 ifadv_phrases_directory = ifadv_dir + 'PHRASES/'
 ifadv_turns_directory = ifadv_dir + 'TURNS/'
 
+
+face_landmarks_filename = '/Users/martijn.bentum/IFADV/'
+face_landmarks_filename += 'video/shape_predictor_68_face_landmarks.dat'
 
