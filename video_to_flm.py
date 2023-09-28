@@ -1,8 +1,11 @@
 import cv2
 import dlib
+import glob
 import locations
 from matplotlib import pyplot as plt
 import numpy as np
+
+fn = glob.glob(locations.video_directory + '*.avi')
 
 def load_video(filename):
     return cv2.VideoCapture(filename)
@@ -28,7 +31,8 @@ def get_facial_landmark_predictor(model_filename = None):
 def get_face_rectangle(image, detector = None):
     if not detector: detector = get_frontal_face_detector()
     rects = detector(image)
-    assert len(rects) == 1
+    assert len(rects) > 0
+    if len(rects) > 1: print('more than one face detected')
     return rects[0]
 
 def get_facial_landmarks(image, rectangle = None, predictor = None):
@@ -42,30 +46,55 @@ def get_facial_landmarks(image, rectangle = None, predictor = None):
 
 def rectangle_to_tuples(rectangle):
     p1 = rectangle.tl_corner()
-    p1 = p.x, p.y
+    p1 = p1.x, p1.y
     p2 = rectangle.br_corner()
-    p2 = p.x, p.y
+    p2 = p2.x, p2.y
     return p1, p2
 
 def add_landmarks_to_image(image, shape_np, rectangle):
     for i, (x,y) in enumerate(shape_np):
         cv2.circle(image, (x,y), 1, (0,0,255), -1)
+    cv2.rectangle(image, *rectangle_to_tuples(rectangle), (0,255,0), 2)
+    
 
 def handle_video_frame(video, detector = None, predictor = None, 
     add_to_image = True):
     succes, image = load_image_from_video(video)
     if not succes: 
         print('could not load fram from video')
-        return
+        return 'done'
     gray = image_to_grayscale(image)
-    rectangle = get_face_rectangle(image, detector)
-    shape_np, shape = get_facial_landmarks(gray, rectangle, predictor)
-    if add_to_image: add_landmarks_to_image(image,shape_np,rectangle)
+    try:rectangle = get_face_rectangle(image, detector)
+    except AssertionError:
+        print('no face detected')
+        rectangle, shape_np, shape = None, None, None
+    else:
+        shape_np, shape = get_facial_landmarks(gray, rectangle, predictor)
+    if add_to_image and shape: add_landmarks_to_image(image,shape_np,rectangle)
     return image, gray, rectangle, shape_np, shape
 
 def handle_video(filename, detector = None, predictor = None):
     if not detector: detector = get_frontal_face_detector()
     if not predictor: predictor= get_facial_landmark_predictor()
     video = load_video(filename)
+    video_frames = []
+    frame_index = 0
+    while True:
+        output = handle_video_frame(video, detector, predictor)
+        if output == 'done': break
+        image, gray, rectangle, shape_np, shape = output
+        success = shape is not None
+        d = {'filename':filename,'frame_index':frame_index,'image':image,
+            'gray':gray,'rectangle':rectangle,'shape_np':shape_np,'shape':shape,
+            'success':success}
+        video_frames.append(d)
+        frame_index += 1
+        if frame_index % 100 == 0: print(frame_index,filename)
+    return video_frames
+
+
+
+
+
     
 
