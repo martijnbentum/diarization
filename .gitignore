@@ -3,5 +3,5 @@ SWP/
 OLD/
 *.wav
 *.txt
-.DS_Store/
+.DS_Store
 *.pickle
