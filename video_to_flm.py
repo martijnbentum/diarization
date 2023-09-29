@@ -117,5 +117,16 @@ def facial_landmarks_to_json(video_frames, filename = None):
 
 
 
+def write_video():
+    '''does not work yet'''
+    # Define the codec and create a VideoWriter object
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')  
+    # You can use other codecs like 'MJPG' or 'MP4V'
+    frame_rate = 30  # Frames per second
+    output_filename = 'output_video.avi'  
+    # Change the output filename and extension as needed
+    frame_size = (width, height)  # Set the frame size (width, height)
+    # Create the VideoWriter object
+    out = cv2.VideoWriter(output_filename, fourcc, frame_rate, frame_size)
     
 
