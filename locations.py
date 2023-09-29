@@ -81,4 +81,6 @@ face_landmarks_filename = '/Users/martijn.bentum/IFADV/'
 face_landmarks_filename += 'video/shape_predictor_68_face_landmarks.dat'
 video_directory = '/Users/martijn.bentum/IFADV/video/'
 video_info= '/Users/martijn.bentum/IFADV/video_info/'
+facial_landmarks_directory= '/Users/martijn.bentum/IFADV/'
+facial_landmarks_directory+= 'facial_landmarks/'
 
