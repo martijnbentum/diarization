@@ -1,3 +1,4 @@
+from collections import Counter
 import cv2
 import dlib
 import glob
@@ -115,6 +116,14 @@ def facial_landmarks_to_json(video_frames, filename = None):
     filename = locations.facial_landmarks_directory + filename + '.json'
     json.dump(video_frames, open(filename,'w'))
 
+
+def analyze_facial_landmarks(json_filename = None, video_frames = None):
+    if not video_frames:
+        if not json_filename: 
+            raise ValueError('provide json_filename or video_frames')
+        video_frames = json.load(open(json_filename))
+    c = Counter([frame['success'] for frame in video_frames])
+    print(c, video_frames[0]['filename'])
 
 
 def write_video():
