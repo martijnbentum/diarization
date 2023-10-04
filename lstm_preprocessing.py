@@ -8,7 +8,7 @@ from tensorflow.keras.utils import timeseries_dataset_from_array
 class Data:
     def __init__(self, train_perc = 70, val_perc = 10, test_perc = 20,
         perc_success = 80,tables = None, label_start_index = 51,
-        batch_size = 64):
+        batch_size = 64, shuffle = True):
         self.train_perc = train_perc
         self.val_perc = val_perc
         self.test_perc = test_perc
@@ -61,12 +61,12 @@ class Data:
         info = infos[0]
         data = timeseries_dataset_from_array(info.X,
             info.y[index:], sequence_length=sequence_length, 
-            batch_size=self.batch_size)
+            batch_size=self.batch_size, shuffle = True)
         for info in infos[1:]:
             print(info)
             data = data.concatenate(timeseries_dataset_from_array(info.X, 
                 info.y[index:], sequence_length=sequence_length, 
-                batch_size=self.batch_size))
+                batch_size=self.batch_size, shuffle = True))
         setattr(self,'_' + name,data)
         return getattr(self,'_' + name)
 
