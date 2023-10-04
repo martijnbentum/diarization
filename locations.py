@@ -1,4 +1,5 @@
 import platform
+import os
 
 linux_path = '/media/mb/BACKUP_4TB/'
 mac_path = '/Volumes/BACKUP_4TB/'
@@ -69,6 +70,8 @@ respeaker_right_filename = right_respeaker_directory
 respeaker_right_filename += 'respeaker_spraakdetector_30-8-23.wav'
 
 # ifadv
+if not os.path.isdir(ifadv_dir):
+    ifadv_dir = '/Users/martijn.bentum/IFADV/'
 ifadv_dir = base_play + 'IFADV/'
 ifadv_table_directory =ifadv_dir + 'TABLE/'
 ifadv_wav_directory = ifadv_dir + 'WAV/'
@@ -76,11 +79,16 @@ ifadv_txt_directory = ifadv_dir +'TXT/'
 ifadv_phrases_directory = ifadv_dir + 'PHRASES/'
 ifadv_turns_directory = ifadv_dir + 'TURNS/'
 
-
-face_landmarks_filename = '/Users/martijn.bentum/IFADV/'
+face_landmarks_filename = ifadv_dir
 face_landmarks_filename += 'video/shape_predictor_68_face_landmarks.dat'
-video_directory = '/Users/martijn.bentum/IFADV/video/'
-video_info= '/Users/martijn.bentum/IFADV/video_info/'
-facial_landmarks_directory= '/Users/martijn.bentum/IFADV/'
-facial_landmarks_directory+= 'facial_landmarks/'
+video_directory = ifadv_dir + 'video/'
+video_info = ifadv_dir + 'video_info/'
+facial_landmarks_directory = ifadv_dir
+facial_landmarks_directory += 'facial_landmarks/'
+facial_landmarks_np_directory = ifadv_dir
+facial_landmarks_np_directory += 'facial_landmarks_np/'
 
+
+lstm_train_data = base + 'lstm_train_data/'
+lstm_val_data= base + 'lstm_val_data/'
+lstm_test_data = base + 'lstm_test_data/'
