@@ -2,6 +2,7 @@ import glob
 import handle_phrases as hp
 import json
 import locations
+import numpy as np
 import os
 
 def make_video_infos(tables = None):
@@ -19,8 +20,11 @@ class info:
         self.file_id = file_id
         self.name = self.file_id.replace('Crop_','')
         self.name = self.name.replace('_mp3lame','')
+        self.name = self.name.replace('_mp3','')
         self.filename_video = locations.video_directory + file_id + '.avi'
         self.filename_json = locations.video_info + file_id + '.json'
+        self.filename_np = locations.facial_landmarks_np_directory
+        self.filename_np += file_id + '.npy'
         self.d = json.load(open(self.filename_json,'r'))
         self.streams = self.d['streams'][0]
         self._set_info()
@@ -109,6 +113,24 @@ class info:
             self._no_speech_frames.append((start_frame,end_frame))
         return self._no_speech_frames
 
+    @property
+    def X(self):
+        if hasattr(self,'_X'): return self._X
+        self._X = np.load(self.filename_np)
+        return self._X
+
+    @property
+    def y(self):
+        if hasattr(self,'_y'): return self._y
+        self._y = np.zeros(self.n_frames)
+        for index in range(self.n_frames):
+            if self.frame_index_to_speech_status(index): 
+                self._y[index] = 1
+            else:
+                self._y[index] = 0
+        return self._y
+
+        
             
             
 
