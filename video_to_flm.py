@@ -6,8 +6,12 @@ import json
 import locations
 from matplotlib import pyplot as plt
 import numpy as np
+import os
+from sklearn.preprocessing import normalize
 
 fn = glob.glob(locations.video_directory + '*.avi')
+json_fn = glob.glob(locations.facial_landmarks_directory + '*.json')
+np_fn = glob.glob(locations.facial_landmarks_np_directory + '*.npy')
 
 def make_all_facial_landmarks_json():
     for f in fn:
@@ -116,16 +120,75 @@ def facial_landmarks_to_json(video_frames, filename = None):
     filename = locations.facial_landmarks_directory + filename + '.json'
     json.dump(video_frames, open(filename,'w'))
 
+def load_video_frames(json_filename):
+    if not json_filename: 
+        raise ValueError('provide json_filename or video_frames')
+    video_frames = json.load(open(json_filename))
+    return video_frames
 
 def analyze_facial_landmarks(json_filename = None, video_frames = None):
-    if not video_frames:
-        if not json_filename: 
-            raise ValueError('provide json_filename or video_frames')
-        video_frames = json.load(open(json_filename))
+    if not video_frames: video_frames = load_video_frames(json_filename)
+    filename = video_frames[0]['filename']
     c = Counter([frame['success'] for frame in video_frames])
-    print(c, video_frames[0]['filename'])
+    success, failure = [], []
+    for i, frame in enumerate(video_frames):
+        if frame['success']: success.append(i)
+        else: failure.append(i)
+    print(c, filename)
+    return c, success, failure
 
+def analyze_all_facial_landmarks(overwrite = False):
+    filename = locations.facial_landmarks_directory
+    filename += 'facial_landmarks_analysis.json'
+    if os.path.isfile(filename) and not overwrite: 
+        return json.load(open(filename))
+    d = {}
+    for f in json_fn:
+        if f == filename: continue
+        name = f.split('/')[-1].split('.')[0]
+        counter,succes,failure = analyze_facial_landmarks(f)
+        n_success = counter[True]
+        n_failure = counter[False]
+        n_frames = n_success + n_failure
+        perc_failure = round(n_failure/n_frames*100,2)
+        perc_success = round(n_success/n_frames*100,2)
+        d[f] = {'n_frames':n_frames,
+            'n_success':n_success,
+            'perc_success':perc_success,
+            'n_failure':n_failure,
+            'perc_failure':perc_failure,
+            'succes_indices':succes,
+            'failure_indices':failure,
+            'name':name}
+    with open(filename, 'w') as fp:
+        json.dump(d,fp)
+    return d
 
+def _to_normalized_facial_landmarks(video_frame):
+    if not video_frame['success']: return np.zeros(136)
+    shape_np = np.array(video_frame['shape_np'])
+    matrix= np.array(shape_np)
+    matrix= normalize(matrix, axis=0)
+    vector = matrix.ravel()
+    return vector
+
+def facial_landmarks_to_np(json_filename = None, video_frames = None,
+    save = True):
+    if not video_frames: video_frames = load_video_frames(json_filename)
+    filename = video_frames[0]['filename']
+    print('processing', filename)
+    n_frames = len(video_frames)
+    n_features = 136
+    X = np.zeros((n_frames, n_features))
+    for video_frame in video_frames:
+        X[video_frame['frame_index']] = _to_normalized_facial_landmarks(
+            video_frame)
+    if save:
+        name = filename.split('/')[-1].split('.')[0]
+        filename = locations.facial_landmarks_np_directory + name + '.npy'
+        np.save(filename, X)
+    return X
+    
 def write_video():
     '''does not work yet'''
     # Define the codec and create a VideoWriter object
