@@ -70,9 +70,9 @@ respeaker_right_filename = right_respeaker_directory
 respeaker_right_filename += 'respeaker_spraakdetector_30-8-23.wav'
 
 # ifadv
+ifadv_dir = base_play + 'IFADV/'
 if not os.path.isdir(ifadv_dir):
     ifadv_dir = '/Users/martijn.bentum/IFADV/'
-ifadv_dir = base_play + 'IFADV/'
 ifadv_table_directory =ifadv_dir + 'TABLE/'
 ifadv_wav_directory = ifadv_dir + 'WAV/'
 ifadv_txt_directory = ifadv_dir +'TXT/'
