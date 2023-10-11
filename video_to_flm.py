@@ -11,6 +11,7 @@ from sklearn.preprocessing import normalize
 
 fn = glob.glob(locations.video_directory + '*.avi')
 json_fn = glob.glob(locations.facial_landmarks_directory + '*.json')
+json_fn = [f for f in json_fn if 'analysis' not in f]
 np_fn = glob.glob(locations.facial_landmarks_np_directory + '*.npy')
 
 def make_all_facial_landmarks_json():
@@ -164,30 +165,37 @@ def analyze_all_facial_landmarks(overwrite = False):
         json.dump(d,fp)
     return d
 
-def _to_normalized_facial_landmarks(video_frame):
+def _to_normalized_facial_landmarks(video_frame, normalize = True):
     if not video_frame['success']: return np.zeros(136)
     shape_np = np.array(video_frame['shape_np'])
     matrix= np.array(shape_np)
-    matrix= normalize(matrix, axis=0)
+    if normalize:
+        matrix= normalize(matrix, axis=0)
     vector = matrix.ravel()
     return vector
 
+
 def facial_landmarks_to_np(json_filename = None, video_frames = None,
-    save = True):
+    save = False, data_type = 'diff'):
     if not video_frames: video_frames = load_video_frames(json_filename)
     filename = video_frames[0]['filename']
     print('processing', filename)
     n_frames = len(video_frames)
     n_features = 136
     X = np.zeros((n_frames, n_features))
+
+    if data_type == 'diff': normalize = False
+    else: normalize = True
     for video_frame in video_frames:
-        X[video_frame['frame_index']] = _to_normalized_facial_landmarks(
-            video_frame)
+        index = video_frame['frame_index']
+        X[index] = _to_normalized_facial_landmarks(video_frame, normalize)
+                
     if save:
         name = filename.split('/')[-1].split('.')[0]
         filename = locations.facial_landmarks_np_directory + name + '.npy'
         np.save(filename, X)
     return X
+
     
 def write_video():
     '''does not work yet'''
