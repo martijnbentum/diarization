@@ -6,6 +6,7 @@ import glob
 import ifadv_clean
 import locations
 import string
+import os
 
 fn_wav = glob.glob(locations.ifadv_wav_directory+ '*.wav')
 
@@ -20,10 +21,14 @@ def make_recording(wav_filename):
 
 def open_recording_file(f = locations.recording_data_filename):
     '''open file with metadata for all recordings.'''
+    if not os.path.exists(f):
+        f = '../' + f.split('/')[-1] 
     return open_file(f)
 
 def open_speaker_file(f = locations.speaker_data_filename):
     '''open file with metadata for all speakers.'''
+    if not os.path.exists(f):
+        f = '../' + f.split('/')[-1] 
     return open_file(f)
 
 def open_file(f):
