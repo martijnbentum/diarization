@@ -425,6 +425,7 @@ def make_phrase_to_db_dict():
     return read_table(locations.phrases_db_filename)
 
 def read_table(filename):
+    if not os.path.exists(filename): filename ='../' +filename.split('/')[-1]
     with open(filename) as fin:
         t = fin.read().split('\n')
     d = {}
