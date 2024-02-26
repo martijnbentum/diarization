@@ -5,7 +5,6 @@ import glob
 import locations
 import mmcv
 import numpy as np
-import os
 from PIL import Image, ImageDraw 
 from PIL.Image import Resampling
 import torch
@@ -78,6 +77,12 @@ def frame_to_mtcnn_rectangles(frame):
     returns a list of bounding boxes and a list of probabilities.'''
     mtcnn = MTCNN(keep_all=True, device=device)
     boxes, probs = mtcnn.detect(frame)
+    if type(boxes) == type(None): 
+        boxes = []
+        probs = []
+    else:
+        boxes = boxes.tolist()
+        probs = probs.tolist()
     return boxes, probs
 
 def draw_rectangles_on_frame(frame, boxes):
@@ -85,7 +90,7 @@ def draw_rectangles_on_frame(frame, boxes):
     frame_draw = frame.copy()
     draw = ImageDraw.Draw(frame_draw)
     for box in boxes:
-        draw.rectangle(box.tolist(), outline=(255, 0, 0), width=6)
+        draw.rectangle(box, outline=(255, 0, 0), width=6)
     return frame_draw
 
 def video_to_rectangle_frames(filename):
@@ -102,8 +107,8 @@ def video_to_rectangle_frames(filename):
         boxes, probs = frame_to_mtcnn_rectangles(frame)
         d ={'filename':filename,
             'frame_index': i, 
-            'boxes': boxes.tolist(), 
-            'probs': probs.tolist()}
+            'boxes': boxes, 
+            'probs': probs}
         frame_draw = draw_rectangles_on_frame(frame, boxes)
         frame_draw = frame_draw.resize((90, 144), Resampling.BILINEAR)
         rectangle_frames.append(frame_draw)
