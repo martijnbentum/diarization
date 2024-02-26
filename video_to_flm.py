@@ -196,6 +196,11 @@ def facial_landmarks_to_np(json_filename = None, video_frames = None,
         np.save(filename, X)
     return X
 
+def convert_mtcnn_rectangle_to_dlib_rectangle(mtcnn_rectangle):
+    x, y, right, bottom= map(int,mtcnn_rectangle)
+    dlib_rectangle = dlib.rectangle(x, y, right, bottom)
+    return dlib_rectangle
+
     
 def write_video():
     '''does not work yet'''
