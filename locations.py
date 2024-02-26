@@ -94,3 +94,6 @@ facial_landmarks_np_directory += 'facial_landmarks_np/'
 lstm_train_data = base + 'lstm_train_data/'
 lstm_val_data= base + 'lstm_val_data/'
 lstm_test_data = base + 'lstm_test_data/'
+
+rttm_directory = '/Users/martijn.bentum/Documents/d/'
+
