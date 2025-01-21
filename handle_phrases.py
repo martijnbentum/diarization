@@ -5,6 +5,7 @@ Phrase object points to extracted phrase wav file and links to metadata
 '''
 
 import ifadv_clean
+import json
 import locations
 import numpy as np
 import os
@@ -438,5 +439,28 @@ def read_table(filename):
 
 def order_tables_on_db(tables = None):
     if not tables: tables = make_all_tables()
+    
+def make_turns_transcription(table, overlap = False):
+    directory = locations.ifadv_turns_transcription_directory
+    output = []
+    for turn in table.turns:
+        if turn.overlap and not overlap: continue
+        d = {'audio_filename':turn.wav_filename}
+        filename = turn.wav_filename.split('/')[-1].replace('.wav','.txt')
+        filename = directory + filename
+        d['text_filename'] = filename
+        output.append(d)
+        with open(filename,'w') as fout:
+            fout.write(turn.text)
+    return output
+
+def make_all_table_turn_transcriptions(tables = None, overlap = False):
+    if not tables: tables = make_all_tables()
+    output = []
+    for table in tables:
+        output.extend(make_turns_transcription(table, overlap = overlap))
+    with open('turn_transcriptions.json','w') as fout:
+        json.dump(output,fout)
+    return output
     
             

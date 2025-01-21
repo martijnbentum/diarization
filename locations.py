@@ -78,6 +78,7 @@ ifadv_wav_directory = ifadv_dir + 'WAV/'
 ifadv_txt_directory = ifadv_dir +'TXT/'
 ifadv_phrases_directory = ifadv_dir + 'PHRASES/'
 ifadv_turns_directory = ifadv_dir + 'TURNS/'
+ifadv_turns_transcription_directory = ifadv_dir + 'TURNS_TRANSCRIPTION/'
 
 face_landmarks_filename = ifadv_dir
 face_landmarks_filename += 'video/shape_predictor_68_face_landmarks.dat'
