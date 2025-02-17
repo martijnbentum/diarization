@@ -7,6 +7,7 @@ import ifadv_clean
 import locations
 import string
 import os
+import json
 
 fn_wav = glob.glob(locations.ifadv_wav_directory+ '*.wav')
 
@@ -63,6 +64,20 @@ class Speaker:
         for line in open_recording_file():
             if line[2] == self.id or line[3] == self.id:
                 self.recordings.append(Recording(line))
+
+    def get_info(self):
+        d = {}
+        d['identifier'] = self.id
+        d['age'] = self.age
+        d['gender'] = self.sex
+        d['line'] = self.line
+        return d
+
+    def to_json(self):
+        return json.dumps(self.get_info())
+
+
+    
 
 
 class Recording:
