@@ -1,9 +1,12 @@
 import glob
 import locations
+import os
+from pathlib import Path
 
 from praatio import textgrid
 from praatio.utilities.constants import Interval
 from praatio.data_classes import interval_tier
+import random
 
 fn = glob.glob(locations.rttm_directory + '*.rttm')
 
@@ -20,16 +23,24 @@ class Rttm:
         self._set_info()
 
     def _set_info(self):
-        self.words = [Word(x) for x in self.t if x]
+        self.words = [Word(x) for x in self.t if x and len(x) == 10 ]
+        self.error = [x for x in self.t if len(x) != 10]
         self.turns = []
         last_speaker = self.words[0].speaker
         start_index = 0
         last_end = 0
         new_turn = False
+        turn_duration = 0
         for i, w in enumerate(self.words):
             w.index = i
+            if i > 0:
+                start_word = self.words[start_index]
+                last_word = self.words[i-1]
+                turn_duration = last_word.end - start_word.start 
             if last_speaker != w.speaker: new_turn = True
             if last_end - w.start > 1: new_turn = True
+            if turn_duration > 2: new_turn = True
+            print(turn_duration)
             if new_turn:
                 self.turns.append(Turn(start_index,i,self))
                 last_speaker = w.speaker
@@ -87,8 +98,8 @@ class Turn:
         self.end_index = end_index
         self.rttm = rttm
         self.words = rttm.words[start_index:end_index]
-        self.start = self.words[0].start
-        self.end = self.words[-1].end
+        self.start = round(self.words[0].start,3)
+        self.end = round(self.words[-1].end,3)
         self.duration = self.end - self.start
         self.speaker = self.words[0].speaker
         self.turn = ' '.join([x.word for x in self.words])
@@ -116,7 +127,7 @@ class Word:
         self.duration = float(line[4])
         self.end = self.start + self.duration
         self.speaker = line[7]
-        self.word = line[10]
+        self.word = line[9]
 
     def __repr__(self):
         m = '{} | {} | {}'.format(self.speaker,self.word, self.start)
@@ -126,3 +137,41 @@ class Word:
     @property
     def interval(self):
         return Interval(round(self.start,3), round(self.end,3), self.word)
+
+
+def select_turns(rttm, speaker, n =300):
+    turns = [x for x in rttm.turns if x.speaker == speaker and x.ok]
+    turns = turns[2:-2]
+    if len(turns) < n: n = len(turns)
+    return random.sample(turns,n)
+
+def make_turn_name(turn):
+    filename = Path(turn.rttm.filename).stem
+    return '{}__{}__{}'.format(filename,turn.speaker, turn.start_index)
+
+def extract_audio(turn,input_wav_filename,output_directory):
+    name = make_turn_name(turn)
+    output_wav_filename = output_directory + name + '.wav'
+    cmd = 'sox ' + input_wav_filename + ' ' + output_wav_filename + ' '
+    cmd += 'trim ' + str(turn.start)
+    cmd += ' ' + str(turn.duration)
+    print(cmd)
+    os.system(cmd)
+
+def extract_text(turn,output_directory):
+    name = make_turn_name(turn)
+    output_text_filename = output_directory + name + '.txt'
+    text =turn.interval.label + ' <{}> <{}> <{}> <{}>'.format(turn.speaker,
+        turn.start, turn.end, round(turn.duration,2))
+    print(text)
+    with open(output_text_filename,'w') as f:
+        f.write(text)
+
+def make_segments(rttm, input_wav_filename, output_directory, speakers, n=100):
+    for speaker in speakers:
+        turns = select_turns(rttm,speaker,n)
+        for turn in turns:
+            extract_audio(turn,input_wav_filename,output_directory)
+            extract_text(turn,output_directory)
+
+
