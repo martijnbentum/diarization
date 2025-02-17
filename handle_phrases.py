@@ -463,4 +463,51 @@ def make_all_table_turn_transcriptions(tables = None, overlap = False):
         json.dump(output,fout)
     return output
     
+
+def turn_wav_filename_to_speaker_id(tables = None, overlap = False):
+    if not tables: tables = make_all_tables()
+    output = {} 
+    for table in tables:
+        for turn in table.turns:
+            if turn.overlap and not overlap: continue
+            output[turn.wav_filename] = turn.speaker.id
+    filename = locations.ifadv_dir + 'turn_wav_filename_to_speaker_id.json'
+    with open(filename,'w') as fout:
+        json.dump(output,fout)
+    return output
+
+def speaker_id_to_speaker_info_dict(tables = None):
+    if not tables: tables = make_all_tables()
+    output = {}
+    for table in tables:
+        for speaker in table.speakers:
+            if speaker.id in output.keys(): continue
+            output[speaker.id] = speaker.to_json()
+    filename = locations.ifadv_dir + 'speaker_id_to_speaker_info_dict.json'
+    with open(filename,'w') as fout:
+        json.dump(output,fout)
+    return output
+
+def turn_wav_filename_to_start_time_dict(tables = None):
+    if not tables: tables = make_all_tables()
+    output = {}
+    for table in tables:
+        for turn in table.turns:
+            output[turn.wav_filename] = turn.start_time
+    filename = locations.ifadv_dir + 'turn_wav_filename_to_start_time_dict.json'
+    with open(filename,'w') as fout:
+        json.dump(output,fout)
+    return output
+
+def turn_wav_filename_to_overlap_dict(tables = None):
+    if not tables: tables = make_all_tables()
+    output = {}
+    for table in tables:
+        for turn in table.turns:
+            output[turn.wav_filename] = turn.overlap
+    filename = locations.ifadv_dir + 'turn_wav_filename_to_overlap_dict.json'
+    with open(filename,'w') as fout:
+        json.dump(output,fout)
+    return output
+
             
